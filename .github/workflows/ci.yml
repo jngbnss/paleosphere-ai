@@ -23,7 +23,7 @@ jobs:
       - name: Install Python 3.12
         run: uv python install 3.12
       - name: Sync dependencies
-        run: uv sync
+        run: uv sync --all-extras
       - name: Ruff
         run: uv run ruff check .
       - name: Pytest
