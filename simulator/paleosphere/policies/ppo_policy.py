@@ -27,9 +27,14 @@ class PPOPolicy:
         self.model_path = Path(model_path)
         self.model = PPO.load(self.model_path, device="cpu")
         self.sha256 = hashlib.sha256(self.model_path.read_bytes()).hexdigest()
-        meta_path = self.model_path.parent / "metadata.json"
+        # models/<name>.metadata.json (deployed copy) or checkpoints/<run>/metadata.json
+        candidates = [
+            self.model_path.with_name(f"{self.model_path.stem}.metadata.json"),
+            self.model_path.parent / "metadata.json",
+        ]
+        meta_path = next((c for c in candidates if c.exists()), None)
         self.training_metadata = (
-            json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            json.loads(meta_path.read_text(encoding="utf-8")) if meta_path else {}
         )
         self.version = version or self.training_metadata.get("run_name", self.model_path.stem)
         self.name = f"ppo:{self.version}"

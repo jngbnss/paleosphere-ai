@@ -1,7 +1,7 @@
 """Predator policy registry for the server.
 
 PPO models are discovered from `models/*.zip` (git-ignored; see README for how to produce
-`models/ppo-v1.zip`). The alias `ppo` points at `ppo-v1` when present, else the first model.
+them). The alias `ppo` points at the highest `ppo-v<N>` model, else the first model.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from paleosphere.policies import PredatorAction, RandomPolicy, RuleBasedPredator
 from paleosphere.policies.base import Policy
 
 MODELS_DIR = Path(os.environ.get("PALEOSPHERE_MODELS_DIR", REPO_ROOT / "models"))
-PREFERRED_PPO = "ppo-v1"
 
 
 class PolicyRegistry:
@@ -33,8 +32,12 @@ class PolicyRegistry:
         return names
 
     def default_ppo(self) -> str | None:
-        if PREFERRED_PPO in self._ppo_paths:
-            return PREFERRED_PPO
+        versioned = sorted(
+            (n for n in self._ppo_paths if n.startswith("ppo-v") and n[5:].isdigit()),
+            key=lambda n: int(n[5:]),
+        )
+        if versioned:
+            return versioned[-1]
         return next(iter(self._ppo_paths), None)
 
     def get(self, name: str) -> Policy:

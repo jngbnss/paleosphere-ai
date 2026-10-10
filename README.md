@@ -37,11 +37,12 @@ uv sync --all-extras
 
 1. 학습 모델 준비 (한 번만, 약 5분). 모델 파일은 Git에 없다.
    ```sh
-   uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0
+   uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 1
    mkdir models
-   cp training/checkpoints/ppo_v2_s0/final_model.zip models/ppo-v1.zip
+   cp training/checkpoints/ppo_v2_s1/final_model.zip models/ppo-v2.zip
+   cp training/checkpoints/ppo_v2_s1/metadata.json models/ppo-v2.metadata.json
    ```
-   (`models/`에 넣은 `*.zip`은 파일 이름으로 정책 목록에 나타나고, `ppo`는 `ppo-v1`을 가리킨다.)
+   (`models/`에 넣은 `*.zip`은 파일 이름으로 정책 목록에 나타나고, `ppo`는 가장 높은 `ppo-v<N>`을 가리킨다.)
 2. 서버 + Godot 뷰어 한 번에 실행 (Windows):
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Godot <Godot 실행 파일 경로>
@@ -61,7 +62,7 @@ uv sync --all-extras
 uv run python -m paleosphere.run --seed 42 --predator rule            # 에피소드 요약
 uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0   # PPO (BC 사전학습 포함)
 uv run python -m training.evaluation.evaluate \
-    --policies rule random ppo=ppo:models/ppo-v1.zip \
+    --policies rule random ppo=ppo:models/ppo-v2.zip \
     --sets eval_seen_map eval_unseen_map --out analytics/reports/my_eval
 ```
 
@@ -76,7 +77,7 @@ godot --headless --path godot -- --smoke                     # 서버 연결 스
 
 ## 결과 요약
 
-[docs/experiments.md](docs/experiments.md) 참고. 각 20 seed 평균.
+[docs/experiments.md](docs/experiments.md) 참고. 각 20 seed 평균. 그래프: `analytics/reports/final/figures/`
 
 | 정책 | 사냥 (처음 보는 seed) | 사냥 (처음 보는 맵 map_b) | 무효 공격 비율 | 포식자 사망률 |
 |---|---|---|---|---|
@@ -84,7 +85,7 @@ godot --headless --path godot -- --smoke                     # 서버 연결 스
 | Rule (기준선) | 2.10 | 2.25 | 0.56 | 0.00 |
 | PPO v0 (보상 v0만) | 0.00 | 0.00 | – | 0.95–1.00 |
 | PPO v1 (보상 v1 + BC + 커리큘럼) | 5.10–5.90 | 5.05–6.60 | 0.01–0.11 | 0.65–1.00 (탈수) |
-| PPO v2 | Experiment 003 참고 | | | |
+| **PPO v2** (보상 v2, 배포 모델 `ppo-v2` = seed 1) | 5.45–7.05 | 4.75–7.15 | 0.02–0.12 | 0.05–0.25 |
 
 ## MVP 완료 조건
 
