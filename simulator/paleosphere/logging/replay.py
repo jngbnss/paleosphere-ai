@@ -34,7 +34,13 @@ class ReplayWriter:
     def __call__(self, world: World, events: list[Event]) -> None:
         assert self._fh is not None, "use ReplayWriter as a context manager"
         if world.tick == 0:
-            header = {"type": "header", "version": REPLAY_VERSION, **self.metadata}
+            header = {
+                "type": "header",
+                "version": REPLAY_VERSION,
+                "map_size": world.size,
+                "every": self.every,
+                **self.metadata,
+            }
             self._fh.write(json.dumps(header) + "\n")
         if world.tick % self.every == 0 or world.done:
             frame = {

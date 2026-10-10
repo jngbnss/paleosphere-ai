@@ -29,6 +29,9 @@ var bars: Dictionary = {}
 
 var paused := false
 var last_snapshot: Dictionary = {}
+var replay: ReplayPlayer = null
+var _replay_accum := 0.0
+var _file_dialog: FileDialog
 var smoke_mode := false
 var screenshot_path := ""
 var _smoke_snapshots := 0
@@ -57,6 +60,9 @@ func _ready() -> void:
 	client.snapshot_received.connect(_on_snapshot)
 	client.error_received.connect(func(m: String) -> void: _set_status("서버 오류: " + m))
 	client.connect_to_server()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--replay="):
+			_load_replay(arg.trim_prefix("--replay="))
 
 
 # ----------------------------------------------------------------------------- UI build
@@ -134,6 +140,17 @@ func _build_ui() -> void:
 	vision.button_pressed = true
 	vision.toggled.connect(func(on: bool) -> void: world_view.show_vision = on)
 	bar.add_child(vision)
+
+	var replay_button := Button.new()
+	replay_button.text = "리플레이 열기"
+	replay_button.pressed.connect(func() -> void: _file_dialog.popup_centered_ratio(0.6))
+	bar.add_child(replay_button)
+	_file_dialog = FileDialog.new()
+	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_file_dialog.filters = PackedStringArray(["*.jsonl ; PaleoSphere replay"])
+	_file_dialog.file_selected.connect(_load_replay)
+	add_child(_file_dialog)
 
 	status_label = Label.new()
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -218,6 +235,7 @@ func _set_status(text: String) -> void:
 
 # ----------------------------------------------------------------------------- commands
 func _start() -> void:
+	replay = null
 	paused = false
 	pause_button.text = "일시정지"
 	chart.clear()
@@ -233,12 +251,14 @@ func _start() -> void:
 func _toggle_pause() -> void:
 	paused = not paused
 	pause_button.text = "재개" if paused else "일시정지"
-	client.send_command({"type": "pause" if paused else "resume"})
+	if replay == null:
+		client.send_command({"type": "pause" if paused else "resume"})
 
 
 func _on_speed(value: float) -> void:
 	speed_label.text = "%d tick/s" % int(value)
-	client.send_command({"type": "set_speed", "ticks_per_second": value})
+	if replay == null:
+		client.send_command({"type": "set_speed", "ticks_per_second": value})
 
 
 func _selected_policy() -> String:
@@ -259,12 +279,18 @@ func _on_hello(policies: Array, _maps: Array) -> void:
 		policy_option.add_item(String(p))
 	var preferred := policies.find("ppo")
 	policy_option.select(preferred if preferred >= 0 else 0)
-	if smoke_mode:
+	if smoke_mode and replay == null:
 		speed_slider.set_value_no_signal(60 if screenshot_path else 20)
 		_start()
 
 
 func _on_snapshot(s: Dictionary) -> void:
+	if replay != null:
+		return
+	_show(s)
+
+
+func _show(s: Dictionary) -> void:
 	if not last_snapshot.is_empty() and (int(s["tick"]) < int(last_snapshot["tick"]) \
 			or s["seed"] != last_snapshot["seed"]):
 		chart.clear()
@@ -310,7 +336,30 @@ func _refresh_selected() -> void:
 		return
 
 
+func _load_replay(path: String) -> void:
+	var player := ReplayPlayer.new()
+	var err := player.load_file(path)
+	if err != "":
+		_set_status(err)
+		return
+	if not paused:
+		client.send_command({"type": "pause"})
+	replay = player
+	_replay_accum = 0.0
+	chart.clear()
+	last_snapshot = {}
+	_show(replay.current(speed_slider.value, paused))
+	_set_status("리플레이: %s (%d 프레임)" % [path.get_file(), replay.frames.size()])
+
+
 func _process(delta: float) -> void:
+	if replay != null and not paused and not replay.is_finished():
+		_replay_accum += delta
+		var frame_time := float(replay.ticks_per_frame()) / speed_slider.value
+		while _replay_accum >= frame_time and not replay.is_finished():
+			_replay_accum -= frame_time
+			replay.advance()
+			_show(replay.current(speed_slider.value, paused))
 	if smoke_mode:
 		_smoke_deadline -= delta
 		if _smoke_deadline <= 0.0:
