@@ -11,3 +11,4 @@ models/
 *.onnx
 .env
 godot/.godot/
+training/logs/
