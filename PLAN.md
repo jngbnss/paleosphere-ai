@@ -107,7 +107,7 @@ paleosphere-ai/
 
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
-| 1.1 | uv 프로젝트 세팅 (pyproject, .gitignore, README) | ⬜ 대기 | `uv run python -c "import paleosphere"` | |
+| 1.1 | uv 프로젝트 세팅 (pyproject, .gitignore, README) | 🔄 진행중 | `uv run python -c "import paleosphere"` | |
 | 1.2 | 엔티티·자원·맵 생성 + world config yaml | ⬜ 대기 | seed로 맵 생성 후 개체 수 확인 | |
 | 1.3 | World tick 루프 + 대사·사망 규칙 + 낮/밤 | ⬜ 대기 | 정책 없이 500 tick, 굶주림 사망 발생 | |
 | 1.4 | 전투 (사거리·쿨다운·명중·사냥) | ⬜ 대기 | 전투 단위 테스트 | |
