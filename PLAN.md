@@ -147,7 +147,7 @@ paleosphere-ai/
 | 4.2 | FastAPI `/ws/sim`, `/predict`, `/health`, `/policies` | ✅ 완료 | TestClient로 스냅샷 수신 | /health·/policies·/predict·/ws/sim(start·pause·step·error) TestClient 11개 통과. 브라우저 대체 뷰어 GET / |
 | 4.3 | Godot 프로젝트 + WebSocket 클라이언트 + 렌더링 | ✅ 완료 | `godot --headless --quit` 에러 없음 | Godot 4.7.2 import 에러 없음, headless --smoke: 서버 snapshot 20개 수신 (SMOKE OK) |
 | 4.4 | 관찰자 UI (정책 선택, 속도, 선택 패널, 라벨, 그래프) | ✅ 완료 | 서버 연결 후 화면 확인 | 정책·맵·seed 선택, 일시정지/속도, 클릭 선택 패널(게이지), 상태 라벨, 시야, 실시간 그래프. 창 모드 스크린샷 확인 |
-| 4.5 | 리플레이 모드 + dev 스크립트 + licenses.md + README 체크리스트 | 🔄 진행중 | 리플레이 파일 재생 | |
+| 4.5 | 리플레이 모드 + dev 스크립트 + licenses.md + README 체크리스트 | ✅ 완료 | 리플레이 파일 재생 | Godot 리플레이 재생 headless 스모크 통과, scripts/dev.ps1, licenses.md, README 데모·MVP 체크리스트 |
 
 ### MVP 이후
 탐험자 모드 · 번식 + 개체수 시계열 예측 · ONNX/Godot 내부 추론 · PettingZoo 다중 에이전트

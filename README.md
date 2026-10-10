@@ -1,11 +1,28 @@
 # PaleoSphere AI
 
 초식공룡과 육식공룡이 먹이·물·에너지를 두고 상호작용하는 생태계 시뮬레이터.
-같은 환경에서 **규칙 기반 포식자(기준선)** 와 **PPO로 학습한 포식자** 를 수치로 비교한다.
+같은 환경·같은 관찰·같은 행동 공간에서 **규칙 기반 포식자(기준선)** 와 **PPO로 학습한 포식자** 를 수치로 비교한다.
 
-- 설계·진행 상황: [PLAN.md](PLAN.md)
-- 스펙: [docs/office-hours.md](docs/office-hours.md)
-- 결정 기록: [docs/decision-log.md](docs/decision-log.md)
+> 행동 트리·상태 머신을 AI라고 부르지 않는다. 규칙 기반 정책은 기준선이고,
+> AI 작업은 관찰·행동·보상 설계, PPO 학습, reward hacking 분석, 일반화 평가다.
+
+- 진행 상황·설계: [PLAN.md](PLAN.md)
+- 스펙: [docs/office-hours.md](docs/office-hours.md) · [docs/environment-spec.md](docs/environment-spec.md)
+- 실험 기록: [docs/experiments.md](docs/experiments.md) · 보상 설계: [docs/reward-design.md](docs/reward-design.md)
+- 모델 선택: [docs/model-selection.md](docs/model-selection.md) · 프로토콜: [docs/protocol.md](docs/protocol.md)
+- 결정 기록: [docs/decision-log.md](docs/decision-log.md) · 라이선스: [docs/licenses.md](docs/licenses.md)
+
+## 구조
+
+```
+simulator/paleosphere/   결정론적 생태계 시뮬레이션 (그래픽 없음), 정책(Random·Rule·PPO), 관찰 생성
+training/                Gymnasium 환경 PaleoSpherePredator-v0, 보상, PPO·BC 학습, 평가, hacking 탐지
+inference-server/app/    FastAPI: WebSocket 스냅샷 스트리밍, /predict, 브라우저 뷰어
+godot/                   Godot 4 2D 관찰자 뷰어 (렌더링·제어만, 시뮬레이션은 서버)
+configs/                 월드·정책·보상·학습 설정 (YAML)
+evals/                   고정 평가 seed, reward hacking 탐지 기준
+analytics/reports/       평가 CSV·요약·그래프
+```
 
 ## 설치
 
@@ -13,7 +30,39 @@
 
 ```sh
 uv python install 3.12
-uv sync
+uv sync --all-extras
+```
+
+## 데모 실행 (관찰자 모드)
+
+1. 학습 모델 준비 (한 번만, 약 5분). 모델 파일은 Git에 없다.
+   ```sh
+   uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0
+   mkdir models
+   cp training/checkpoints/ppo_v2_s0/final_model.zip models/ppo-v1.zip
+   ```
+   (`models/`에 넣은 `*.zip`은 파일 이름으로 정책 목록에 나타나고, `ppo`는 `ppo-v1`을 가리킨다.)
+2. 서버 + Godot 뷰어 한 번에 실행 (Windows):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Godot <Godot 실행 파일 경로>
+   ```
+   또는 따로:
+   ```sh
+   uv run python -m app                                   # http://127.0.0.1:8790
+   godot --path godot                                     # Godot 4.7 뷰어
+   ```
+   Godot이 없으면 브라우저에서 http://127.0.0.1:8790/ 를 열면 같은 데이터를 보는 간단한 뷰어가 뜬다.
+3. 뷰어에서 seed·맵·포식자 정책(rule / random / ppo)을 고르고 **시작**. 공룡을 클릭하면 상태가 보인다.
+   리플레이: `uv run python -m paleosphere.run --seed 42 --replay replays/seed42.jsonl` 후 뷰어의 **리플레이 열기**.
+
+## 시뮬레이션·학습·평가 (그래픽 없음)
+
+```sh
+uv run python -m paleosphere.run --seed 42 --predator rule            # 에피소드 요약
+uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0   # PPO (BC 사전학습 포함)
+uv run python -m training.evaluation.evaluate \
+    --policies rule random ppo=ppo:models/ppo-v1.zip \
+    --sets eval_seen_map eval_unseen_map --out analytics/reports/my_eval
 ```
 
 ## 테스트
@@ -21,12 +70,35 @@ uv sync
 ```sh
 uv run ruff check .
 uv run pytest
+godot --headless --path godot --import                       # 프로젝트 로드 검사
+godot --headless --path godot -- --smoke                     # 서버 연결 스모크 (서버 실행 중)
 ```
 
-## 시뮬레이션 실행 (그래픽 없음)
+## 결과 요약
 
-```sh
-uv run python -m paleosphere.run --seed 42 --map map_a --predator rule --ticks 2000
-uv run python -m paleosphere.run --seed 42 --predator random
-uv run python -m paleosphere.run --seed 42 --replay replays/seed42.jsonl --replay-every 2
-```
+[docs/experiments.md](docs/experiments.md) 참고. 각 20 seed 평균.
+
+| 정책 | 사냥 (처음 보는 seed) | 사냥 (처음 보는 맵 map_b) | 무효 공격 비율 | 포식자 사망률 |
+|---|---|---|---|---|
+| Random | 0.20 | 0.10 | 0.99 | 0.80 |
+| Rule (기준선) | 2.10 | 2.25 | 0.56 | 0.00 |
+| PPO v0 (보상 v0만) | 0.00 | 0.00 | – | 0.95–1.00 |
+| PPO v1 (보상 v1 + BC + 커리큘럼) | 5.10–5.90 | 5.05–6.60 | 0.01–0.11 | 0.65–1.00 (탈수) |
+| PPO v2 | Experiment 003 참고 | | | |
+
+## MVP 완료 조건
+
+| # | 조건 | 상태 |
+|---|---|---|
+| 1 | 고정 seed로 생태계 초기화 | ✅ 스냅샷 해시 테스트 |
+| 2 | 초식공룡이 규칙 기반으로 먹이·물을 찾음 | ✅ |
+| 3 | 규칙 기반 육식공룡이 먹잇감 추격 | ✅ |
+| 4 | 같은 환경에서 PPO 육식공룡 실행 | ✅ |
+| 5 | 두 정책의 행동 차이가 화면에 표시 | ✅ Godot 상태 라벨·행동·지표 |
+| 6 | 사냥 성공률·에너지 소비 비교 | ✅ `evaluate.py` |
+| 7 | 새로운 seed에서 정책 평가 | ✅ eval_seen_map |
+| 8 | 보지 않은 자원 배치에서 평가 | ✅ map_b, 자원 ±40% |
+| 9 | Godot에서 학습 정책 실시간 작동 | ✅ |
+| 10 | 개체 상태·행동 확인 | ✅ 클릭 선택 패널 |
+| 11 | 고정 평가 스크립트로 재현 | ✅ `evals/fixed-seeds.yaml` |
+| 12 | 실험 보고서에 개선 전후 기록 | ✅ Experiment 001–003 |

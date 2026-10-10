@@ -54,3 +54,53 @@ Reward hacking 탐지 (플래그 에피소드 비율): `idle_forever` s0 1.00 ·
 ### 다음 실험
 Experiment 002: 보상 v1 (shaping γ = 1, 명중 보상, 배고픔 비례 비용, 목표 없는 GIVE_UP 비용)
 + 학습 커리큘럼(일부 에피소드를 먹잇감 근처에서 시작) + 규칙 기반 시연으로 행동 복제(BC) 사전학습 후 PPO.
+
+---
+
+## Experiment 002 — 보상 v1 + BC 사전학습 + 커리큘럼
+
+| 항목 | 내용 |
+|---|---|
+| 가설 | 보상 누수를 고치고(shaping γ=1) 탐색 문제를 BC 사전학습으로 우회하면, PPO가 교사인 규칙 기반 정책보다 사냥을 더 잘하고 처음 보는 환경에서도 유지된다 |
+| 환경 | `PaleoSpherePredator-v0`, 학습 map_a. 학습 에피소드 30%는 먹잇감 5–9m에서 시작 (평가는 항상 기본 배치) |
+| 정책 | `ppo_v1_s{0,1,2}` — 규칙 기반 시연 40 에피소드로 BC(모방 정확도 98%) → PPO 500k step, lr 1e-4, ent 0.02 (`configs/training/ppo_v1.yaml`) |
+| 보상 | `configs/rewards/v1.yaml` (변경점은 [`reward-design.md`](reward-design.md)) |
+| 학습 seed | 0, 1, 2 |
+| 평가 seed | eval_seen_map 10000–10019 (map_a), eval_unseen_map 20000–20019 (map_b: 물 위치 이동·식물 −40%), 자원 ×0.6 / ×1.4 (map_a) |
+| 기준선 | RuleBasedPredator, RandomPolicy, PPO v0 |
+| 모델 | 체크포인트 선택에 쓴 seed(10000–10004)와 평가 seed가 겹치므로 **선택 없이 `final_model.zip`으로 평가** |
+| 재현 | `uv run python -m training.scripts.train_ppo --config ppo_v1 --seed {0,1,2}` → `evaluate --sets eval_seen_map eval_unseen_map [--resource-scale 0.6/1.4] --out analytics/reports/exp002/...` |
+
+### 결과 (각 20 seed, 평균 ± 표준편차)
+
+| policy | set | kills | hunt success | energy/kill | invalid attack rate | survival | 포식자 사망률 |
+|---|---|---|---|---|---|---|---|
+| rule | seen | 2.10 ± 0.44 | 0.12 | 127 | 0.56 | 2000 | 0.00 |
+| rule | **unseen map_b** | 2.25 ± 0.43 | 0.14 | 91 | 0.44 | 2000 | 0.00 |
+| ppo_v0 (3 seed) | seen | 0.00 | – | – | – | 1655–1687 | 0.95–1.00 |
+| ppo_v1_s0 | seen | **5.90 ± 1.67** | 0.15 | 57 | 0.06 | 1608 | 0.80 |
+| ppo_v1_s0 | **unseen map_b** | **6.60 ± 1.39** | 0.15 | 56 | 0.07 | 1491 | 0.65 |
+| ppo_v1_s1 | seen | 5.10 ± 1.58 | 0.14 | 52 | 0.10 | 1714 | 1.00 |
+| ppo_v1_s1 | unseen map_b | 5.05 ± 1.77 | 0.15 | 59 | 0.11 | 1607 | 0.90 |
+| ppo_v1_s2 | seen | 5.20 ± 1.78 | 0.15 | 56 | 0.01 | 1638 | 0.90 |
+| ppo_v1_s2 | unseen map_b | 5.90 ± 1.14 | 0.15 | 56 | 0.03 | 1592 | 0.90 |
+
+자원 변화 (map_a, 20 seed): 식물 ×0.6 — rule 1.95 / v1 4.90–6.35 사냥, ×1.4 — rule 2.05 / v1 5.05–5.85 사냥.
+
+행동 분포 (seen): rule REST 0.56 · CHASE 0.19 · ATTACK 0.02 / v1 CHASE 0.23–0.33 · REST 0.37–0.65 · ATTACK 0.02–0.03 · **GO_TO_WATER 0.00**.
+
+### 결론
+- **사냥 측면 가설 채택.** 3개 학습 seed 모두 규칙 기반보다 사냥 2.4–3.1배, 사냥당 에너지 절반 이하, 무효 공격 비율 0.56 → 0.01–0.11.
+  처음 보는 seed·처음 보는 자원 배치(map_b)·자원량 ±40%에서도 같은 수준 유지.
+  교사(규칙 기반)를 모방한 뒤 PPO가 "사거리 경계에서 공격하지 말고 붙을 때까지 추격" 같은 개선을 스스로 찾았다.
+- **생존 측면 가설 기각.** 포식자 사망률 65–100%, 사망 원인 거의 전부 **탈수** (평균 갈증 ~70). GO_TO_WATER를 한 번도 고르지 않는다.
+  보상 총점·사냥 수만 봤다면 성공으로 오판했을 결과.
+
+### 실패 원인
+1. 탈수 사망은 ~1,600 tick 뒤에 오는데 γ = 0.99에서 −10 사망 페널티는 사실상 보이지 않는다 (0.99^1000 ≈ 4e−5).
+2. 배고픔은 매 tick 비용(hunger_penalty)이 있지만 갈증에는 없다 → 비대칭.
+3. drink_reward 0.05는 이동 비용·기회비용 대비 작다.
+4. 탐지기 6종이 이 유형을 잡지 못했다 → `dehydration_neglect`(탈수 사망 + 물 행동 ≤ 1%) 추가, Exp 002 보고서 재계산.
+
+### 다음 실험
+Experiment 003: 보상 v2 — `thirst_penalty` −0.01·thirst/100 (hunger와 대칭), drink_reward 0.05 → 0.2. 나머지 동일.
