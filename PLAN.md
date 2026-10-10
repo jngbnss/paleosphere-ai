@@ -137,7 +137,7 @@ paleosphere-ai/
 | 3.3 | 보상 v1 + 재학습 | ✅ 완료 | `--smoke` + 학습 완료 | v1(BC+커리큘럼) seed 0·1·2 각 500k, 학습 중 평가 사냥 5.6~6.6 (v0 0). v1 smoke 테스트 추가 |
 | 3.4 | 일반화 평가 (unseen seed / map_b / 자원 ±40%) | ✅ 완료 | 평가 CSV 생성 | PPO v1 사냥 5.1~6.6 (Rule 2.1~2.3), 처음 보는 seed·map_b·자원 ±40%에서 유지. 단 탈수 사망 65~100% → dehydration_neglect 탐지기 추가 |
 | 3.5 | 그래프 + Experiment 002 + model-selection.md | ⬜ 대기 | 그래프 파일 생성 | |
-| 3.6 | 보상 v2 (갈증 비례 비용) 재학습 → Experiment 003 | ⬜ 대기 | 평가 CSV + 탐지기 | Exp 002에서 탈수 방치 발견 후 추가 |
+| 3.6 | 보상 v2 (갈증 비례 비용) 재학습 → Experiment 003 | 🔄 진행중 | 평가 CSV + 탐지기 | Exp 002에서 탈수 방치 발견 후 추가 |
 
 ### Phase 4 — Sim 서버 + Godot 관찰자 뷰어
 
