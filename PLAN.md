@@ -125,7 +125,7 @@ paleosphere-ai/
 | 2.3 | `PaleoSpherePredator-v0` 환경 | ✅ 완료 | `check_env` 통과 | check_env 통과, terminated/truncated 구분, 순수 sim과 해시 일치 |
 | 2.4 | `train_ppo.py` (+ `--smoke`, 메타데이터, EvalCallback) | ✅ 완료 | `--smoke` 2,048 step 완료 | --smoke 11초 통과. 50k step 27초 (8 env 약 2,000 steps/s) |
 | 2.5 | `PPOPolicy` + `evaluate.py` + `fixed-seeds.yaml` | ✅ 완료 | random/rule 정책 3 seed 평가 CSV 생성 | 3 seed: Rule 사냥 1.67·생존 2000, Random 사냥 0·전원 사망. PPOPolicy 어댑터 테스트 통과 |
-| 2.6 | 학습 seed 0·1·2 학습 + 비교 → Experiment 001 | ⬜ 대기 | 비교표 생성 | |
+| 2.6 | 학습 seed 0·1·2 학습 + 비교 → Experiment 001 | 🔄 진행중 | 비교표 생성 | |
 | 2.7 | CI에 check_env + smoke training | ⬜ 대기 | 로컬 pytest 통과 | |
 
 ### Phase 3 — Reward Hacking + 일반화 평가
