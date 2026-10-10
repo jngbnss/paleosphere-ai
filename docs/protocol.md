@@ -5,7 +5,7 @@ Python 시뮬레이션 서버(`inference-server/app`)와 Godot 뷰어 사이의 
 
 ## 흐름
 
-1. Godot → `ws://127.0.0.1:8765/ws/sim` 연결
+1. Godot → `ws://127.0.0.1:8790/ws/sim` 연결
 2. 서버 → `hello` (사용 가능한 정책·맵)
 3. Godot → `start` (seed, map, predator_policy, ticks_per_second)
 4. 서버 → 매 tick `snapshot` (실행 중일 때). `pause` / `resume` / `set_speed` / `step`으로 제어

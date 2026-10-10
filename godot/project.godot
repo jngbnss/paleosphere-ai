@@ -1,0 +1,21 @@
+; Engine configuration file.
+; PaleoSphere 2D observer viewer. The simulation runs in the Python server; this project only
+; renders snapshots and sends control commands (docs/protocol.md).
+
+config_version=5
+
+[application]
+
+config/name="PaleoSphere Viewer"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7")
+
+[display]
+
+window/size/viewport_width=1360
+window/size/viewport_height=860
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

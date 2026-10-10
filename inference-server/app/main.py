@@ -1,6 +1,6 @@
 """FastAPI sim/inference server.
 
-    uv run python -m app            # http://127.0.0.1:8765
+    uv run python -m app            # http://127.0.0.1:8790
 """
 
 from __future__ import annotations
