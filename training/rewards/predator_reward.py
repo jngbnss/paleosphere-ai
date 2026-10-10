@@ -11,16 +11,20 @@ from pydantic import BaseModel, ConfigDict
 from paleosphere.config import CONFIG_DIR
 from paleosphere.core.events import Event, EventKind
 from paleosphere.core.world import World
+from paleosphere.policies.actions import PredatorAction
 from paleosphere.policies.observation import PredatorView
 
 REWARD_COMPONENTS = (
     "hunt_reward",
+    "hit_reward",
     "distance_reward",
     "move_penalty",
     "sprint_penalty",
     "long_chase_penalty",
     "invalid_attack_penalty",
     "energy_penalty",
+    "hunger_penalty",
+    "idle_penalty",
     "drink_reward",
     "survival_reward",
     "death_penalty",
@@ -45,6 +49,10 @@ class RewardConfig(BaseModel):
     drink_reward: float
     survival_reward: float
     death_penalty: float
+    # Added in v1 (default 0 keeps v0 behaviour identical).
+    hit_reward: float = 0.0
+    hunger_penalty_coef: float = 0.0
+    idle_give_up_penalty: float = 0.0
 
 
 def load_reward_config(name_or_path: str = "v0") -> RewardConfig:
@@ -77,16 +85,19 @@ class PredatorReward:
         world: World,
         agent_id: str,
         events: list[Event],
+        action: int | None = None,
     ) -> dict[str, float]:
         cfg = self.cfg
         me = world.dinos[agent_id]
         mine = [e for e in events if e.agent_id == agent_id]
         kills = sum(1 for e in mine if e.kind == EventKind.KILL)
+        hits = sum(1 for e in mine if e.kind == EventKind.ATTACK_HIT)
         invalid = sum(1 for e in mine if e.kind == EventKind.ATTACK_INVALID)
         drank = any(e.kind == EventKind.DRINK for e in mine)
 
         r = dict.fromkeys(REWARD_COMPONENTS, 0.0)
         r["hunt_reward"] = cfg.hunt_reward * kills
+        r["hit_reward"] = cfg.hit_reward * hits
         # Terminal state potential is 0 by convention, so shaping cannot be farmed by dying.
         next_phi = self.potential(after) if (after is not None and me.alive) else 0.0
         r["distance_reward"] = cfg.shaping_gamma * next_phi - self.potential(before)
@@ -99,6 +110,10 @@ class PredatorReward:
         r["invalid_attack_penalty"] = cfg.invalid_attack_penalty * invalid
         if me.alive and me.energy < cfg.low_energy_threshold:
             r["energy_penalty"] = cfg.low_energy_penalty
+        if me.alive:
+            r["hunger_penalty"] = -cfg.hunger_penalty_coef * me.hunger / 100.0
+        if action == PredatorAction.GIVE_UP and before.target_id is None:
+            r["idle_penalty"] = cfg.idle_give_up_penalty
         if drank and before.thirst > cfg.drink_thirst_threshold:
             r["drink_reward"] = cfg.drink_reward
         if me.alive:

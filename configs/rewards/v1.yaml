@@ -1,0 +1,20 @@
+# 포식자 보상 v1. v0 분석(docs/reward-design.md) 후 수정.
+# v0 실패: 사냥을 한 번도 경험하지 못해 이동 비용만 피하는 "제자리 정지(GIVE_UP/REST)" 정책으로 수렴.
+version: v1
+hunt_reward: 10.0
+hit_reward: 2.0                # [신규] 명중 1회. 사냥(2회 명중)까지의 중간 신호
+distance_shaping_coef: 1.0     # 0.5 → 1.0 (potential-based라 최적 정책은 불변)
+shaping_gamma: 1.0             # 0.99 → 1.0. v0에서 (1-γ)Φ 근접 세금이 에피소드당 약 -8 → 먹잇감 회피·GIVE_UP 학습의 원인
+move_penalty: -0.001           # -0.002 → -0.001 (탐색을 덜 억제)
+sprint_penalty: -0.003         # -0.005 → -0.003
+long_chase_ticks: 60
+long_chase_penalty: -0.01
+invalid_attack_penalty: -0.1
+low_energy_threshold: 10.0
+low_energy_penalty: -0.02
+hunger_penalty_coef: 0.01      # [신규] 매 tick -0.01 * hunger/100. 굶는 비용을 즉시 체감하게 함
+idle_give_up_penalty: -0.05    # [신규] 목표가 없는데 GIVE_UP (제자리 정지 우회로 차단)
+drink_thirst_threshold: 50.0
+drink_reward: 0.05
+survival_reward: 0.0
+death_penalty: -10.0

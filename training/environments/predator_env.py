@@ -31,6 +31,8 @@ class PredatorEnv(gym.Env):
         max_steps: int = 2000,
         seed_range: tuple[int, int] = TRAIN_SEED_RANGE,
         world_overrides: dict[str, Any] | None = None,
+        spawn_near_prey_prob: float = 0.0,
+        spawn_near_prey_distance: tuple[float, float] = (5.0, 9.0),
     ):
         super().__init__()
         if isinstance(world_config, WorldConfig):
@@ -43,6 +45,10 @@ class PredatorEnv(gym.Env):
         )
         self.max_steps = max_steps
         self.seed_range = seed_range
+        # Training-only curriculum: start some episodes next to prey so the agent experiences
+        # hits and kills early. Evaluation always uses the default spawn (prob 0).
+        self.spawn_near_prey_prob = spawn_near_prey_prob
+        self.spawn_near_prey_distance = spawn_near_prey_distance
         self.observation_space = spaces.Box(-1.0, 1.0, shape=(OBS_DIM,), dtype=np.float32)
         self.action_space = spaces.Discrete(len(PredatorAction))
         self.herbivore_policy = RuleBasedHerbivore()
@@ -60,6 +66,8 @@ class PredatorEnv(gym.Env):
         self.world = World(self.world_config, self.episode_seed)
         self.herbivore_policy.reset(self.episode_seed)
         self.predator_id = self.world.alive(Species.PREDATOR)[0].agent_id
+        if options.get("spawn_near_prey", self.np_random.random() < self.spawn_near_prey_prob):
+            self._spawn_near_prey()
         self.tracker = EpisodeTracker(self.world, self.predator_id, "env")
         self.steps = 0
         self.episode_components = Counter()
@@ -82,7 +90,7 @@ class PredatorEnv(gym.Env):
 
         alive = world.dinos[pid].alive
         after = predator_view(world, pid) if alive else None
-        components = self.reward_fn.compute(before, after, world, pid, events)
+        components = self.reward_fn.compute(before, after, world, pid, events, action)
         self.episode_components.update(components)
 
         terminated = (not alive) or not world.alive(Species.HERBIVORE)
@@ -100,6 +108,18 @@ class PredatorEnv(gym.Env):
             }
         obs = encode_predator_view(after) if after is not None else self._dead_obs()
         return obs, float(components["total_reward"]), terminated, truncated, info
+
+    def _spawn_near_prey(self) -> None:
+        world = self.world
+        herd = world.alive(Species.HERBIVORE)
+        prey = herd[int(self.np_random.integers(len(herd)))]
+        angle = float(self.np_random.uniform(0.0, 2.0 * np.pi))
+        dist = float(self.np_random.uniform(*self.spawn_near_prey_distance))
+        x = float(prey.pos[0]) + dist * np.cos(angle)
+        z = float(prey.pos[1]) + dist * np.sin(angle)
+        x, z = world._resolve_collisions(x, z)
+        world.dinos[self.predator_id].pos = np.array([x, z])
+        world._update_targets()
 
     def _obs(self) -> np.ndarray:
         return encode_predator_view(predator_view(self.world, self.predator_id))

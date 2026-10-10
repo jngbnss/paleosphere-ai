@@ -108,6 +108,11 @@ def test_boundary_hugging_synthetic():
     assert not flag_episode(base_row(predator_boundary_fraction=0.1))["boundary_hugging"]
 
 
+def test_idle_via_give_up_synthetic():
+    """Regression for PPO v0: standing still with GIVE_UP must count as idling."""
+    assert flag_episode(base_row(act_give_up=0.83, act_rest=0.15, kills=0))["idle_forever"]
+
+
 def test_chase_to_death_synthetic():
     assert flag_episode(base_row(predator_death_cause="exhaustion"))["chase_to_death"]
     assert not flag_episode(base_row(predator_death_cause="starvation"))["chase_to_death"]

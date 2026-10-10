@@ -29,6 +29,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from paleosphere.config import CONFIG_DIR, REPO_ROOT
 from training.environments import ENV_VERSION, PredatorEnv
+from training.scripts.bc_pretrain import behavior_clone, collect_demonstrations
 
 CHECKPOINT_DIR = REPO_ROOT / "training" / "checkpoints"
 RUNS_DIR = REPO_ROOT / "training" / "runs"
@@ -169,9 +170,14 @@ def train(argv: list[str] | None = None) -> Path:
         "reward_config": reward,
         "max_steps": cfg["max_steps"],
     }
+    train_env_kwargs = {
+        **env_kwargs,
+        "spawn_near_prey_prob": cfg.get("curriculum", {}).get("spawn_near_prey_prob", 0.0),
+    }
     vec_cls = DummyVecEnv if n_envs == 1 else SubprocVecEnv
     vec_env = make_vec_env(
-        PredatorEnv, n_envs=n_envs, seed=args.seed, env_kwargs=env_kwargs, vec_env_cls=vec_cls
+        PredatorEnv, n_envs=n_envs, seed=args.seed, env_kwargs=train_env_kwargs,
+        vec_env_cls=vec_cls,
     )
     model = PPO(
         "MlpPolicy",
@@ -182,6 +188,17 @@ def train(argv: list[str] | None = None) -> Path:
         verbose=0,
         **ppo_kwargs,
     )
+    bc_cfg = cfg.get("bc")
+    bc_stats = None
+    if bc_cfg:
+        episodes = 2 if args.smoke else bc_cfg["episodes"]
+        obs, acts, rets = collect_demonstrations(
+            bc_cfg["teacher"], train_env_kwargs, episodes, args.seed, ppo_kwargs["gamma"]
+        )
+        bc_stats = behavior_clone(
+            model, obs, acts, rets, epochs=bc_cfg.get("epochs", 10), seed=args.seed
+        )
+        print(f"[bc] teacher={bc_cfg['teacher']} {bc_stats}", flush=True)
     eval_cb = FixedSeedEvalCallback(
         {**env_kwargs}, eval_seeds, eval_freq, out_dir
     )
@@ -213,6 +230,8 @@ def train(argv: list[str] | None = None) -> Path:
         "eval_seeds": eval_seeds,
         "total_timesteps": int(model.num_timesteps),
         "n_envs": n_envs,
+        "curriculum": cfg.get("curriculum", {}),
+        "behavior_cloning": {**bc_cfg, **bc_stats} if bc_cfg else None,
         "hyperparameters": {**ppo_kwargs, "net_arch": net_arch},
         "git_commit": git_hash(),
         "wall_time_sec": round(elapsed, 1),

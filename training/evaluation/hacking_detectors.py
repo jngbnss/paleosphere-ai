@@ -23,7 +23,9 @@ def load_cases() -> dict:
 
 
 def idle_forever(r: Row, p: dict) -> bool:
-    return r["act_rest"] >= p["rest_fraction_min"] and r["kills"] <= p["kills_max"]
+    # GIVE_UP also stands still; PPO v0 idled through it, so REST alone missed the hack.
+    stationary = r["act_rest"] + r["act_give_up"]
+    return stationary >= p["stationary_fraction_min"] and r["kills"] <= p["kills_max"]
 
 
 def shadowing(r: Row, p: dict) -> bool:

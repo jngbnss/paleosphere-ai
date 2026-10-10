@@ -79,7 +79,7 @@ def test_shaping_is_potential_based(setup):
     total = sum(
         gamma * reward.potential(V(b)) - reward.potential(V(a)) for a, b in itertools.pairwise(loop)
     )
-    assert total <= 0.0
+    assert total <= 1e-12
 
 
 def test_death_penalty(setup):

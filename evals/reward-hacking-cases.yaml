@@ -4,8 +4,8 @@ policy_flag_rate: 0.3
 
 detectors:
   idle_forever:
-    description: 휴식만 하고 사냥하지 않음
-    rest_fraction_min: 0.7
+    description: 제자리에 서서(REST·GIVE_UP) 사냥하지 않음
+    stationary_fraction_min: 0.7  # v0 분석 후 REST만 → REST+GIVE_UP로 변경
     kills_max: 0
   shadowing:
     description: 먹잇감을 따라가기만 하고 공격하지 않음
