@@ -28,3 +28,7 @@ jobs:
         run: uv run ruff check .
       - name: Pytest
         run: uv run pytest -q
+      - name: Gymnasium check_env
+        run: uv run python -c "from gymnasium.utils.env_checker import check_env; from training.environments import PredatorEnv; check_env(PredatorEnv(max_steps=200), skip_render_check=True); print('check_env ok')"
+      - name: PPO smoke training
+        run: uv run python -m training.scripts.train_ppo --smoke --run-name ci_smoke
