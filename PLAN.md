@@ -134,7 +134,7 @@ paleosphere-ai/
 |---|---|---|---|---|
 | 3.1 | hacking detector 6종 + 유발 테스트 | ✅ 완료 | 각 detector가 유발 케이스 탐지 | 탐지기 6종. REST·ATTACK·물·추격 스크립트 정책에서 각각 탐지, Rule 기준선은 탐지 없음 (67개 통과) |
 | 3.2 | PPO v0 분석 → reward-design.md | ✅ 완료 | 문서 확인 | 원인 3가지(shaping 근접 세금·탐색 실패·탐지기 사각지대)와 v1 수정 근거 기록 |
-| 3.3 | 보상 v1 + 재학습 | ⬜ 대기 | `--smoke` + 학습 완료 | |
+| 3.3 | 보상 v1 + 재학습 | 🔄 진행중 | `--smoke` + 학습 완료 | |
 | 3.4 | 일반화 평가 (unseen seed / map_b / 자원 ±40%) | ⬜ 대기 | 평가 CSV 생성 | |
 | 3.5 | 그래프 + Experiment 002 + model-selection.md | ⬜ 대기 | 그래프 파일 생성 | |
 
