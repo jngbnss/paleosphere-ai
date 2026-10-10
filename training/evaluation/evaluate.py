@@ -23,6 +23,7 @@ from paleosphere.config import REPO_ROOT, load_world_config
 from paleosphere.logging.episode import run_episode
 from paleosphere.policies import RuleBasedHerbivore
 from paleosphere.policies.factory import make_predator_policy
+from training.evaluation.hacking_detectors import add_flags, policy_report, report_markdown
 
 SEED_SETS_PATH = REPO_ROOT / "evals" / "fixed-seeds.yaml"
 PREDATOR_ACTIONS = ["SEARCH", "APPROACH", "CHASE", "ATTACK", "GO_TO_WATER", "REST", "GIVE_UP"]
@@ -140,14 +141,21 @@ def evaluate(
             rows = list(pool.map(run_one, jobs, chunksize=4))
     else:
         rows = [run_one(j) for j in jobs]
-    df = pd.DataFrame(rows)
+    df = add_flags(pd.DataFrame(rows))
     summary = summarize(df)
     if out is not None:
         out = Path(out)
         out.mkdir(parents=True, exist_ok=True)
         df.to_csv(out / "episodes.csv", index=False)
         summary.to_csv(out / "summary.csv", index=False)
-        (out / "summary.md").write_text(to_markdown(summary), encoding="utf-8")
+        hacks = policy_report(df)
+        hacks.to_csv(out / "hacking.csv", index=False)
+        (out / "summary.md").write_text(
+            to_markdown(summary)
+            + "\nReward hacking 탐지 (플래그 에피소드 비율)\n\n"
+            + report_markdown(hacks),
+            encoding="utf-8",
+        )
     return df, summary
 
 

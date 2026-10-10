@@ -13,6 +13,8 @@ from paleosphere.entities import Species
 from paleosphere.policies import PredatorAction
 from paleosphere.policies.base import Policy
 
+BOUNDARY_MARGIN = 2.0
+
 
 @dataclass(slots=True)
 class EpisodeSummary:
@@ -32,6 +34,8 @@ class EpisodeSummary:
     energy_spent: float
     energy_per_kill: float | None
     herbivores_alive: int
+    predator_mean_thirst: float = 0.0
+    predator_boundary_fraction: float = 0.0
     herbivore_deaths: dict[str, int] = field(default_factory=dict)
     predator_action_counts: dict[str, int] = field(default_factory=dict)
     final_hash: str = ""
@@ -51,6 +55,8 @@ class EpisodeTracker:
         self.actions: Counter[str] = Counter()
         self.energy_spent = 0.0
         self.survival_ticks = 0
+        self.thirst_sum = 0.0
+        self.boundary_ticks = 0
 
     def record(self, actions: dict[str, int], energy_before: float, events: list[Event]) -> None:
         pred = self.world.dinos[self.predator_id]
@@ -59,6 +65,13 @@ class EpisodeTracker:
             self.energy_spent += max(0.0, energy_before - pred.energy)
             if pred.alive:
                 self.survival_ticks += 1
+                self.thirst_sum += pred.thirst
+                margin = BOUNDARY_MARGIN
+                size = self.world.size
+                if min(pred.pos[0], pred.pos[1]) < margin or max(pred.pos[0], pred.pos[1]) > (
+                    size - margin
+                ):
+                    self.boundary_ticks += 1
         for e in events:
             if e.agent_id == self.predator_id or e.kind == EventKind.KILL:
                 self.events[e.kind] += 1
@@ -92,6 +105,8 @@ class EpisodeTracker:
             energy_spent=round(self.energy_spent, 6),
             energy_per_kill=round(self.energy_spent / kills, 6) if kills else None,
             herbivores_alive=len(w.alive(Species.HERBIVORE)),
+            predator_mean_thirst=round(self.thirst_sum / max(1, self.survival_ticks), 6),
+            predator_boundary_fraction=round(self.boundary_ticks / max(1, self.survival_ticks), 6),
             herbivore_deaths=dict(sorted(herb_deaths.items())),
             predator_action_counts=dict(sorted(self.actions.items())),
             final_hash=w.snapshot_hash(),

@@ -23,7 +23,9 @@
     "SEARCH": 782
   },
   "predator_alive": true,
+  "predator_boundary_fraction": 0.0,
   "predator_death_cause": null,
+  "predator_mean_thirst": 41.365288,
   "predator_policy": "rule-predator",
   "predator_survival_ticks": 2000,
   "seed": 42,
