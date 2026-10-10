@@ -109,7 +109,7 @@ paleosphere-ai/
 |---|---|---|---|---|
 | 1.1 | uv 프로젝트 세팅 (pyproject, .gitignore, README) | ✅ 완료 | `uv run python -c "import paleosphere"` | import ok, Python 3.12 |
 | 1.2 | 엔티티·자원·맵 생성 + world config yaml | ✅ 완료 | seed로 맵 생성 후 개체 수 확인 | map_a/map_b 생성 테스트 6개 통과 |
-| 1.3 | World tick 루프 + 대사·사망 규칙 + 낮/밤 | ⬜ 대기 | 정책 없이 500 tick, 굶주림 사망 발생 | |
+| 1.3 | World tick 루프 + 대사·사망 규칙 + 낮/밤 | 🔄 진행중 | 정책 없이 500 tick, 굶주림 사망 발생 | |
 | 1.4 | 전투 (사거리·쿨다운·명중·사냥) | ⬜ 대기 | 전투 단위 테스트 | |
 | 1.5 | Policy 프로토콜 + Random + RuleBased(초식·육식) + 관찰 생성(26차원) | ⬜ 대기 | 관찰 shape/범위/NaN 테스트 | |
 | 1.6 | 결정성 (snapshot hash) + 골든 회귀 테스트 | ⬜ 대기 | seed 42 두 번 실행 해시 동일 | |
