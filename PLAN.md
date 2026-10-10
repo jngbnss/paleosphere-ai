@@ -133,7 +133,7 @@ paleosphere-ai/
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
 | 3.1 | hacking detector 6종 + 유발 테스트 | ✅ 완료 | 각 detector가 유발 케이스 탐지 | 탐지기 6종. REST·ATTACK·물·추격 스크립트 정책에서 각각 탐지, Rule 기준선은 탐지 없음 (67개 통과) |
-| 3.2 | PPO v0 분석 → reward-design.md | ⬜ 대기 | 문서 확인 | |
+| 3.2 | PPO v0 분석 → reward-design.md | 🔄 진행중 | 문서 확인 | |
 | 3.3 | 보상 v1 + 재학습 | ⬜ 대기 | `--smoke` + 학습 완료 | |
 | 3.4 | 일반화 평가 (unseen seed / map_b / 자원 ±40%) | ⬜ 대기 | 평가 CSV 생성 | |
 | 3.5 | 그래프 + Experiment 002 + model-selection.md | ⬜ 대기 | 그래프 파일 생성 | |
