@@ -17,6 +17,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
+from paleosphere.combat import AttackOutcome, resolve_attack
 from paleosphere.config import WorldConfig
 from paleosphere.core.events import Event, EventKind
 from paleosphere.core.geometry import distance, unit
@@ -242,7 +243,24 @@ class World:
         return np.clip(pos, 0.0, self.size)
 
     def _resolve_attacks(self, decided: Mapping[str, object]) -> None:
-        """Combat is added in step 1.4."""
+        for agent_id, action in decided.items():
+            attacker = self.dinos[agent_id]
+            if attacker.species != Species.PREDATOR or action != PredatorAction.ATTACK:
+                continue
+            target = self.dinos.get(attacker.target_id) if attacker.target_id else None
+            result = resolve_attack(attacker, target, self.config.combat, self.combat_rng)
+            target_id = target.agent_id if target else None
+            if not result.valid:
+                self._emit(
+                    EventKind.ATTACK_INVALID, agent_id, target_id, reason=str(result.outcome)
+                )
+            elif result.outcome == AttackOutcome.MISS:
+                self._emit(EventKind.ATTACK_MISS, agent_id, target_id)
+            else:
+                self._emit(EventKind.ATTACK_HIT, agent_id, target_id, damage=result.damage)
+                if result.outcome == AttackOutcome.KILL:
+                    self._emit(EventKind.KILL, agent_id, target_id)
+                    self._kill(target, DeathCause.PREDATION, killer_id=agent_id)
 
     def _resolve_feeding(self, decided: Mapping[str, object]) -> None:
         met = self.config.metabolism
