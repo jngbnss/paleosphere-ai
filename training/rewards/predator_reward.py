@@ -24,6 +24,7 @@ REWARD_COMPONENTS = (
     "invalid_attack_penalty",
     "energy_penalty",
     "hunger_penalty",
+    "thirst_penalty",
     "idle_penalty",
     "drink_reward",
     "survival_reward",
@@ -53,6 +54,8 @@ class RewardConfig(BaseModel):
     hit_reward: float = 0.0
     hunger_penalty_coef: float = 0.0
     idle_give_up_penalty: float = 0.0
+    # Added in v2.
+    thirst_penalty_coef: float = 0.0
 
 
 def load_reward_config(name_or_path: str = "v0") -> RewardConfig:
@@ -112,6 +115,7 @@ class PredatorReward:
             r["energy_penalty"] = cfg.low_energy_penalty
         if me.alive:
             r["hunger_penalty"] = -cfg.hunger_penalty_coef * me.hunger / 100.0
+            r["thirst_penalty"] = -cfg.thirst_penalty_coef * me.thirst / 100.0
         if action == PredatorAction.GIVE_UP and before.target_id is None:
             r["idle_penalty"] = cfg.idle_give_up_penalty
         if drank and before.thirst > cfg.drink_thirst_threshold:

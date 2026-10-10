@@ -25,3 +25,7 @@ detectors:
   chase_to_death:
     description: 무리한 추격으로 탈진 사망
     death_cause: exhaustion
+  dehydration_neglect:
+    description: 물을 마시지 않고 탈수로 사망 (Exp 002 PPO v1에서 발견)
+    death_cause: dehydration
+    water_fraction_max: 0.01

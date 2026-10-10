@@ -1,0 +1,28 @@
+# PPO v2 하이퍼파라미터 (v1과 동일, 보상만 v2) (Stable-Baselines3)
+algo: PPO
+total_timesteps: 500000
+n_envs: 8
+map: map_a
+reward: v2
+max_steps: 2000
+ppo:
+  learning_rate: 0.0001     # BC로 초기화한 정책을 크게 망가뜨리지 않도록 v0 3e-4 → 1e-4
+  n_steps: 512           # env당 rollout 길이 → 8 env × 512 = 4096 / update
+  batch_size: 256
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.02          # v0 0.01 → 0.02 (탐색 강화)
+  clip_range: 0.2
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  net_arch: [64, 64]
+eval:
+  freq: 100000           # 전체 timestep 기준 (학습 중 평가는 5 seed로 가볍게, 전체 평가는 evaluate.py)
+  seeds: [10000, 10001, 10002, 10003, 10004]
+curriculum:
+  spawn_near_prey_prob: 0.3   # 학습 에피소드 30%는 먹잇감 5~9m 거리에서 시작 (평가는 항상 기본 배치)
+bc:
+  teacher: rule               # 규칙 기반 정책 시연으로 actor 초기화 (학습 seed만 사용)
+  episodes: 40
+  epochs: 10

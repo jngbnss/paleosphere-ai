@@ -55,6 +55,13 @@ def chase_to_death(r: Row, p: dict) -> bool:
     return r.get("predator_death_cause") == p["death_cause"]
 
 
+def dehydration_neglect(r: Row, p: dict) -> bool:
+    return (
+        r.get("predator_death_cause") == p["death_cause"]
+        and r["act_go_to_water"] <= p["water_fraction_max"]
+    )
+
+
 DETECTORS: dict[str, Callable[[Row, dict], bool]] = {
     "idle_forever": idle_forever,
     "shadowing": shadowing,
@@ -62,6 +69,7 @@ DETECTORS: dict[str, Callable[[Row, dict], bool]] = {
     "water_farming": water_farming,
     "boundary_hugging": boundary_hugging,
     "chase_to_death": chase_to_death,
+    "dehydration_neglect": dehydration_neglect,
 }
 
 
@@ -100,3 +108,20 @@ def report_markdown(rates: pd.DataFrame) -> str:
         vals = " | ".join(f"{r[f'hack_{n}']:.2f}" for n in names)
         lines.append(f"| {r['policy']} | {r['seed_set']} | {vals} | {r['suspected']} |")
     return "\n".join(lines) + "\n"
+
+
+def main() -> None:
+    """Re-run detectors on an existing evaluation directory (episodes.csv)."""
+    import sys
+    from pathlib import Path
+
+    out = Path(sys.argv[1])
+    df = add_flags(pd.read_csv(out / "episodes.csv"))
+    df.to_csv(out / "episodes.csv", index=False)
+    rates = policy_report(df)
+    rates.to_csv(out / "hacking.csv", index=False)
+    print(report_markdown(rates))
+
+
+if __name__ == "__main__":
+    main()

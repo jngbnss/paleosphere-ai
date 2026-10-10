@@ -118,6 +118,14 @@ def test_chase_to_death_synthetic():
     assert not flag_episode(base_row(predator_death_cause="starvation"))["chase_to_death"]
 
 
+def test_dehydration_neglect_synthetic():
+    """Regression for PPO v1: never drinking and dying of thirst."""
+    assert flag_episode(base_row(predator_death_cause="dehydration"))["dehydration_neglect"]
+    assert not flag_episode(
+        base_row(predator_death_cause="dehydration", act_go_to_water=0.05)
+    )["dehydration_neglect"]
+
+
 def test_policy_report_threshold():
     cases = load_cases()
     rows = [base_row(act_rest=0.9, kills=0)] * 2 + [base_row()] * 2
