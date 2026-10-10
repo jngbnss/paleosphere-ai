@@ -1,0 +1,31 @@
+{
+  "attack_attempts": 44,
+  "attack_hits": 9,
+  "energy_per_kill": 145.925,
+  "energy_spent": 291.85,
+  "final_hash": "f806f8eda1c27e60d91ba1a9e6dc16389e3f0f9794ddc6000508a5e84cdc6e2f",
+  "give_ups": 4,
+  "herbivore_deaths": {
+    "predation": 2
+  },
+  "herbivores_alive": 6,
+  "hunt_success_rate": 0.090909,
+  "invalid_attacks": 22,
+  "kills": 2,
+  "map": "map_a",
+  "predator_action_counts": {
+    "APPROACH": 115,
+    "ATTACK": 44,
+    "CHASE": 451,
+    "GIVE_UP": 4,
+    "GO_TO_WATER": 129,
+    "REST": 922,
+    "SEARCH": 335
+  },
+  "predator_alive": true,
+  "predator_death_cause": null,
+  "predator_policy": "rule-predator",
+  "predator_survival_ticks": 2000,
+  "seed": 777,
+  "ticks": 2000
+}

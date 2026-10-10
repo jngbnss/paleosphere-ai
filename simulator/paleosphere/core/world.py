@@ -13,6 +13,8 @@ Tick order (see docs/office-hours.md §3):
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
 
 import numpy as np
@@ -335,6 +337,11 @@ class World:
             "waters": [w.to_dict() for w in self.waters],
             "rocks": [r.to_dict() for r in self.rocks],
         }
+
+    def snapshot_hash(self) -> str:
+        """Stable digest of the full world state, used for determinism checks."""
+        payload = json.dumps(self.to_snapshot(), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _id(d: Dino) -> str:
