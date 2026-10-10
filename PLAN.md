@@ -114,7 +114,7 @@ paleosphere-ai/
 | 1.5 | Policy 프로토콜 + Random + RuleBased(초식·육식) + 관찰 생성(26차원) | ✅ 완료 | 관찰 shape/범위/NaN 테스트 | 31개 통과. 8 seed 기준 Rule 포식자 사냥 2~3회 생존, Random 사냥 0회 굶어 죽음 |
 | 1.6 | 결정성 (snapshot hash) + 골든 회귀 테스트 | ✅ 완료 | seed 42 두 번 실행 해시 동일 | 38개 통과. seed 42/777/2026 골든 요약+해시 일치 |
 | 1.7 | 에피소드 로그 + jsonl 리플레이 + CLI | ✅ 완료 | `python -m paleosphere.run --seed 42` 요약 출력 | CLI seed 42: 사냥 2, 2,960 steps/s. 리플레이 왕복 테스트 통과 (42개) |
-| 1.8 | CI (ruff + pytest) + environment-spec.md | ⬜ 대기 | 로컬 ruff + pytest 통과 | |
+| 1.8 | CI (ruff + pytest) + environment-spec.md | 🔄 진행중 | 로컬 ruff + pytest 통과 | |
 
 ### Phase 2 — Gymnasium 환경 + PPO 학습
 
