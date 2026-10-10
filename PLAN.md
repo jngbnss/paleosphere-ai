@@ -111,7 +111,7 @@ paleosphere-ai/
 | 1.2 | 엔티티·자원·맵 생성 + world config yaml | ✅ 완료 | seed로 맵 생성 후 개체 수 확인 | map_a/map_b 생성 테스트 6개 통과 |
 | 1.3 | World tick 루프 + 대사·사망 규칙 + 낮/밤 | ✅ 완료 | 정책 없이(전원 REST) 2500 tick, 굶주림·갈증 사망 발생 | world 테스트 9개 포함 15개 통과 |
 | 1.4 | 전투 (사거리·쿨다운·명중·사냥) | ✅ 완료 | 전투 단위 테스트 | 전투 테스트 8개 포함 23개 통과 |
-| 1.5 | Policy 프로토콜 + Random + RuleBased(초식·육식) + 관찰 생성(26차원) | ⬜ 대기 | 관찰 shape/범위/NaN 테스트 | |
+| 1.5 | Policy 프로토콜 + Random + RuleBased(초식·육식) + 관찰 생성(26차원) | 🔄 진행중 | 관찰 shape/범위/NaN 테스트 | |
 | 1.6 | 결정성 (snapshot hash) + 골든 회귀 테스트 | ⬜ 대기 | seed 42 두 번 실행 해시 동일 | |
 | 1.7 | 에피소드 로그 + jsonl 리플레이 + CLI | ⬜ 대기 | `python -m paleosphere.run --seed 42` 요약 출력 | |
 | 1.8 | CI (ruff + pytest) + environment-spec.md | ⬜ 대기 | 로컬 ruff + pytest 통과 | |
