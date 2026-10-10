@@ -1,0 +1,163 @@
+"""Wire protocol between the Python sim server and the Godot viewer.
+
+Server -> client: `Snapshot` (every tick while running) and `ServerMessage` variants.
+Client -> server: `ControlCommand` (discriminated by `type`).
+JSON Schemas are exported to docs/protocol.md by `python -m app.export_schema`.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from paleosphere.policies.observation import OBS_DIM
+
+PROTOCOL_VERSION = 1
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+# --------------------------------------------------------------------- world state
+class DinoState(_Model):
+    agent_id: str
+    species: Literal["herbivore", "predator"]
+    position: tuple[float, float]
+    velocity: tuple[float, float]
+    health: float
+    energy: float
+    hunger: float
+    thirst: float
+    age: int
+    current_action: str
+    target_id: str | None
+    alive: bool
+    death_cause: str | None
+    status_code: str
+    status_label: str
+    vision: float
+
+
+class PlantState(_Model):
+    plant_id: str
+    position: tuple[float, float]
+    radius: float
+    food: float
+
+
+class WaterState(_Model):
+    water_id: str
+    position: tuple[float, float]
+    radius: float
+
+
+class RockState(_Model):
+    rock_id: str
+    position: tuple[float, float]
+    radius: float
+
+
+class EventState(_Model):
+    tick: int
+    kind: str
+    agent_id: str
+    target_id: str | None
+    data: dict
+
+
+class Metrics(_Model):
+    herbivores_alive: int
+    predator_energy: float
+    predator_hunger: float
+    kills: int
+    attack_attempts: int
+    invalid_attacks: int
+
+
+class Snapshot(_Model):
+    type: Literal["snapshot"] = "snapshot"
+    protocol_version: int = PROTOCOL_VERSION
+    tick: int
+    seed: int
+    map: str
+    map_size: float
+    is_night: bool
+    predator_policy: str
+    paused: bool
+    ticks_per_second: float
+    done: bool
+    dinos: list[DinoState]
+    plants: list[PlantState]
+    waters: list[WaterState]
+    rocks: list[RockState]
+    events: list[EventState]
+    metrics: Metrics
+
+
+class ErrorMessage(_Model):
+    type: Literal["error"] = "error"
+    message: str
+
+
+class Hello(_Model):
+    type: Literal["hello"] = "hello"
+    protocol_version: int = PROTOCOL_VERSION
+    policies: list[str]
+    maps: list[str]
+
+
+# ------------------------------------------------------------------ client commands
+class StartCommand(_Model):
+    type: Literal["start"]
+    seed: int = 10000
+    map: Literal["map_a", "map_b"] = "map_a"
+    predator_policy: str = "rule"
+    ticks_per_second: float = Field(10.0, gt=0, le=200)
+
+
+class PauseCommand(_Model):
+    type: Literal["pause"]
+
+
+class ResumeCommand(_Model):
+    type: Literal["resume"]
+
+
+class SetSpeedCommand(_Model):
+    type: Literal["set_speed"]
+    ticks_per_second: float = Field(gt=0, le=200)
+
+
+class StepCommand(_Model):
+    type: Literal["step"]
+    n: int = Field(1, ge=1, le=1000)
+
+
+ControlCommand = Annotated[
+    StartCommand | PauseCommand | ResumeCommand | SetSpeedCommand | StepCommand,
+    Field(discriminator="type"),
+]
+control_adapter: TypeAdapter[ControlCommand] = TypeAdapter(ControlCommand)
+
+
+# ------------------------------------------------------------------------- predict
+class PredictRequest(_Model):
+    agent_id: str = "predator-000"
+    observation: list[float] = Field(min_length=OBS_DIM, max_length=OBS_DIM)
+    policy: str | None = Field(None, description="policy name from GET /policies; default ppo")
+
+
+class PredictResponse(_Model):
+    action: str
+    action_id: int
+    policy_version: str
+    inference_time_ms: float
+
+
+class PolicyInfo(_Model):
+    name: str
+    kind: str
+    version: str | None = None
+    model_sha256: str | None = None
