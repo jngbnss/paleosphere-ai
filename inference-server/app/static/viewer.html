@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PaleoSphere Viewer</title>
+<style>
+  :root { --bg:#f4f1ea; --panel:#ffffff; --ink:#25323b; --muted:#6b7780; --line:#d6dad6;
+          --herb:#4f9a53; --pred:#c4472f; --plant:#8bbf6a; --water:#5aa0c8; --rock:#8a8580; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161b1f; --panel:#1f262b; --ink:#e3e8ea; --muted:#9aa5ab; --line:#334047; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui, "Malgun Gothic", sans-serif; }
+  header { padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  label { color:var(--muted); font-size:12px; }
+  input, select, button { font:inherit; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
+  button { cursor:pointer; }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; padding:16px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  canvas { width:100%; aspect-ratio:1; background:#e9e4d6; border-radius:10px; display:block; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+  .panel h2 { font-size:13px; margin:0 0 8px; color:var(--muted); font-weight:600; }
+  .row { display:flex; justify-content:space-between; }
+  .bar { height:6px; background:var(--line); border-radius:3px; margin:2px 0 6px; }
+  .bar > i { display:block; height:100%; border-radius:3px; background:var(--ink); }
+  #chart { width:100%; height:120px; }
+  .note { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PaleoSphere</h1>
+  <label>seed <input id="seed" type="number" value="10000" style="width:90px"></label>
+  <label>맵 <select id="map"><option>map_a</option><option>map_b</option></select></label>
+  <label>포식자 정책 <select id="policy"></select></label>
+  <button id="start">시작</button>
+  <button id="pause">일시정지</button>
+  <label>속도 <input id="speed" type="range" min="1" max="100" value="20"> <span id="speedv">20</span> tick/s</label>
+  <label><input id="vision" type="checkbox" checked> 시야</label>
+  <span id="status" class="note"></span>
+</header>
+<main>
+  <canvas id="world" width="800" height="800"></canvas>
+  <aside>
+    <div class="panel"><h2>현황</h2><div id="metrics"></div></div>
+    <div class="panel"><h2>선택한 공룡 (클릭)</h2><div id="selected" class="note">공룡을 클릭하세요</div></div>
+    <div class="panel"><h2>초식 개체수 · 포식자 에너지</h2><canvas id="chart" width="300" height="120"></canvas></div>
+    <p class="note">상태 라벨은 관찰값과 선택된 행동을 사람이 읽기 쉽게 바꾼 것이며 모델 내부 추론이 아닙니다.</p>
+  </aside>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const cv = $("world"), ctx = cv.getContext("2d"), chart = $("chart"), cctx = chart.getContext("2d");
+let ws, snap = null, selected = "predator-000", paused = false, history = [];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws/sim`);
+  ws.onopen = () => $("status").textContent = "연결됨";
+  ws.onclose = () => { $("status").textContent = "연결 끊김 — 재연결 중"; setTimeout(connect, 1000); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === "hello") {
+      $("policy").innerHTML = m.policies.map(p => `<option>${p}</option>`).join("");
+      if (m.policies.includes("ppo")) $("policy").value = "ppo";
+    } else if (m.type === "error") { $("status").textContent = "오류: " + m.message; }
+    else if (m.type === "snapshot") {
+      if (!snap || m.tick < snap.tick || m.seed !== snap.seed) history = [];
+      snap = m;
+      history.push([m.tick, m.metrics.herbivores_alive, m.metrics.predator_energy]);
+      $("status").textContent = `tick ${m.tick}${m.is_night ? " · 밤" : ""}${m.done ? " · 종료" : ""}`;
+      draw(); panels();
+    }
+  };
+}
+const send = o => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+$("start").onclick = () => { paused = false; $("pause").textContent = "일시정지";
+  send({type:"start", seed:+$("seed").value, map:$("map").value, predator_policy:$("policy").value, ticks_per_second:+$("speed").value}); };
+$("pause").onclick = () => { paused = !paused; send({type: paused ? "pause" : "resume"}); $("pause").textContent = paused ? "재개" : "일시정지"; };
+$("speed").oninput = () => { $("speedv").textContent = $("speed").value; send({type:"set_speed", ticks_per_second:+$("speed").value}); };
+$("vision").onchange = draw;
+cv.onclick = e => {
+  if (!snap) return;
+  const r = cv.getBoundingClientRect(), k = snap.map_size / r.width;
+  const x = (e.clientX - r.left) * k, z = (e.clientY - r.top) * k;
+  let best = null, bd = 3;
+  for (const d of snap.dinos) { const dd = Math.hypot(d.position[0]-x, d.position[1]-z); if (dd < bd) { bd = dd; best = d; } }
+  if (best) { selected = best.agent_id; panels(); draw(); }
+};
+
+function draw() {
+  if (!snap) return;
+  const s = cv.width / snap.map_size;
+  ctx.fillStyle = snap.is_night ? "#5c6470" : "#e9e4d6"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const circle = (p, r, fill) => { ctx.beginPath(); ctx.arc(p[0]*s, p[1]*s, r*s, 0, 7); ctx.fillStyle = fill; ctx.fill(); };
+  for (const w of snap.waters) circle(w.position, w.radius, css("--water"));
+  for (const p of snap.plants) { ctx.globalAlpha = 0.25 + 0.75 * p.food / 60; circle(p.position, p.radius, css("--plant")); ctx.globalAlpha = 1; }
+  for (const r of snap.rocks) circle(r.position, r.radius, css("--rock"));
+  for (const d of snap.dinos) {
+    const [x, z] = d.position.map(v => v * s);
+    if (d.species === "predator" && $("vision").checked && d.alive) {
+      ctx.beginPath(); ctx.arc(x, z, d.vision * s, 0, 7); ctx.strokeStyle = "rgba(196,71,47,.35)"; ctx.setLineDash([6,6]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = d.alive ? 1 : 0.3;
+    if (d.species === "predator") {
+      const a = Math.atan2(d.velocity[1], d.velocity[0]) || 0;
+      ctx.save(); ctx.translate(x, z); ctx.rotate(a); ctx.beginPath();
+      ctx.moveTo(14, 0); ctx.lineTo(-9, 8); ctx.lineTo(-9, -8); ctx.closePath();
+      ctx.fillStyle = css("--pred"); ctx.fill(); ctx.restore();
+    } else { ctx.beginPath(); ctx.arc(x, z, 7, 0, 7); ctx.fillStyle = css("--herb"); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (d.agent_id === selected) {
+      ctx.beginPath(); ctx.arc(x, z, 13, 0, 7); ctx.strokeStyle = "#25323b"; ctx.lineWidth = 2; ctx.stroke(); ctx.lineWidth = 1;
+      ctx.font = "bold 14px system-ui, 'Malgun Gothic'"; ctx.fillStyle = "#25323b"; ctx.fillText(d.status_label, x + 14, z - 12);
+    }
+  }
+}
+function bar(name, v, color) { return `<div class="row"><span>${name}</span><span>${v.toFixed(0)}</span></div><div class="bar"><i style="width:${v}%;background:${color}"></i></div>`; }
+function panels() {
+  const m = snap.metrics;
+  $("metrics").innerHTML = `<div class="row"><span>정책</span><b>${snap.predator_policy}</b></div>
+    <div class="row"><span>초식 생존</span><b>${m.herbivores_alive}</b></div>
+    <div class="row"><span>사냥</span><b>${m.kills}</b></div>
+    <div class="row"><span>공격 시도 / 무효</span><b>${m.attack_attempts} / ${m.invalid_attacks}</b></div>`;
+  const d = snap.dinos.find(x => x.agent_id === selected);
+  if (d) $("selected").innerHTML = `<div class="row"><b>${d.agent_id}</b><span>${d.status_label}</span></div>
+    <div class="note">행동: ${d.current_action}${d.target_id ? " → " + d.target_id : ""}</div>
+    ${bar("체력", d.health, "#4f9a53")}${bar("에너지", d.energy, "#d6a03a")}${bar("배고픔", d.hunger, "#c4472f")}${bar("갈증", d.thirst, "#5aa0c8")}`;
+  drawChart();
+}
+function drawChart() {
+  const W = chart.width, H = chart.height; cctx.clearRect(0, 0, W, H);
+  if (history.length < 2) return;
+  const t0 = history[0][0], t1 = Math.max(history.at(-1)[0], t0 + 1);
+  const line = (idx, max, color) => { cctx.beginPath(); history.forEach(([t, ...v], i) => {
+    const x = (t - t0) / (t1 - t0) * W, y = H - v[idx - 1] / max * (H - 4) - 2; i ? cctx.lineTo(x, y) : cctx.moveTo(x, y); });
+    cctx.strokeStyle = color; cctx.lineWidth = 2; cctx.stroke(); };
+  line(1, 8, "#4f9a53"); line(2, 100, "#d6a03a");
+}
+connect();
+</script>
+</body>
+</html>
