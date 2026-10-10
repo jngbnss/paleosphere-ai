@@ -1,0 +1,16 @@
+# 포식자 보상 v0. 모든 component는 info["reward_components"]에 개별 기록된다.
+version: v0
+hunt_reward: 10.0              # 사냥 성공 1회
+distance_shaping_coef: 0.5     # potential-based: gamma*phi(s') - phi(s), phi = coef * (1 - min(dist/vision, 1))
+shaping_gamma: 0.99            # PPO gamma와 맞춘다
+move_penalty: -0.002           # 걷기 tick
+sprint_penalty: -0.005         # 질주 tick
+long_chase_ticks: 60
+long_chase_penalty: -0.01      # 추격 tick > long_chase_ticks
+invalid_attack_penalty: -0.1   # 사거리 밖·쿨다운 중·목표 없음 공격
+low_energy_threshold: 10.0
+low_energy_penalty: -0.02      # energy < threshold인 tick
+drink_thirst_threshold: 50.0
+drink_reward: 0.05             # 갈증 > threshold일 때 마신 tick만 (물가 파밍 방지)
+survival_reward: 0.0           # v0에서는 끔 (REST 정체 방지)
+death_penalty: -10.0

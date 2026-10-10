@@ -121,7 +121,7 @@ paleosphere-ai/
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
 | 2.1 | 학습 의존성 추가 | ✅ 완료 | `import gymnasium, stable_baselines3` | gymnasium 1.4.0, SB3 2.9.0, torch 2.14.1+cpu import·연산 확인 |
-| 2.2 | 보상 v0 (component별) | 🔄 진행중 | 보상 NaN/inf 테스트 | |
+| 2.2 | 보상 v0 (component별) | ✅ 완료 | 보상 NaN/inf 테스트 | component 10종 + total. NaN/inf·사냥·무효공격·사망·shaping 루프 테스트 통과 (48개) |
 | 2.3 | `PaleoSpherePredator-v0` 환경 | ⬜ 대기 | `check_env` 통과 | |
 | 2.4 | `train_ppo.py` (+ `--smoke`, 메타데이터, EvalCallback) | ⬜ 대기 | `--smoke` 2,048 step 완료 | |
 | 2.5 | `PPOPolicy` + `evaluate.py` + `fixed-seeds.yaml` | ⬜ 대기 | random/rule 정책 3 seed 평가 CSV 생성 | |
