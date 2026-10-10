@@ -58,6 +58,20 @@ potential-based shaping의 한 step 값은 γΦ(s′) − Φ(s). 제자리에 �
 ## v1 (`configs/rewards/v1.yaml`)
 v0 대비 변경은 위 표. 결과는 [`experiments.md`](experiments.md) Experiment 002.
 
+## v1 분석 — Experiment 002 → v2
+
+**관찰**: 사냥은 Rule의 2.4–3.1배인데 포식자 사망률 65–100%, 거의 전부 탈수. GO_TO_WATER 0%.
+
+| 원인 | 설명 |
+|---|---|
+| 사망 페널티가 너무 멀다 | 탈수 사망은 ~1,600 tick 후. γ = 0.99에서 0.99^1000 ≈ 4e−5 → −10이 보이지 않음 |
+| 비용 비대칭 | 배고픔은 매 tick 비용(hunger_penalty)이 있지만 갈증은 없음 |
+| 교사 시연 부족 | 규칙 기반은 갈증 > 70에서만 물로 감 → BC 데이터에 물 행동 5% |
+
+**수정 (v2)**: `thirst_penalty` −0.01·thirst/100 per tick (hunger와 대칭), drink_reward 0.05 → 0.2.
+**결과**: 탈수 사망률 0.05–0.25, 사냥 유지 (Experiment 003). 새 탐지기 `dehydration_neglect` 추가.
+**부작용**: seed 0에서 `water_farming` 의심 (map_b 35% 에피소드). drink_reward를 낮추는 것이 다음 후보.
+
 ## 남은 위험
 - BC 교사의 버릇(사거리 경계에서 ATTACK → 무효 공격)을 그대로 물려받을 수 있다 → `invalid_attack_rate`로 추적.
 - hunger_penalty가 너무 크면 무리한 추격으로 탈진 사망 → `chase_to_death` 탐지기로 추적.
