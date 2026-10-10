@@ -77,7 +77,7 @@ func _to_screen(p: Vector2) -> Vector2:
 func _draw() -> void:
 	if snapshot.is_empty():
 		draw_string(get_theme_default_font(), Vector2(24, 40), "서버 연결을 기다리는 중…  (uv run python -m app)",
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 18, COLOR_INK)
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.85, 0.88, 0.9))
 		return
 	var s := _scale()
 	var map_px := float(snapshot.get("map_size", 64.0)) * s
