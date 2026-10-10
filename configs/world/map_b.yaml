@@ -1,0 +1,9 @@
+# map_b: 학습에 사용하지 않는 일반화 평가용 맵 (물 위치 이동, 식물 -40%)
+extends: default
+map:
+  name: map_b
+  plants:
+    count: 6
+  waters:
+    - {pos: [48.0, 50.0], radius: 3.5}
+    - {pos: [12.0, 12.0], radius: 3.0}

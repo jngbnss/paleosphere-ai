@@ -5,7 +5,7 @@ description = "Predator-prey ecosystem simulator for comparing rule-based and RL
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "numpy>=2.0",
+    "numpy>=2.0,<2.5",  # 2.5.x DLL이 Windows 애플리케이션 제어에 차단됨 (D-009)
     "pyyaml>=6.0",
     "pydantic>=2.7",
 ]
@@ -32,3 +32,6 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["paleosphere", "training", "app"]
