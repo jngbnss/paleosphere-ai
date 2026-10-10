@@ -22,3 +22,11 @@ uv sync
 uv run ruff check .
 uv run pytest
 ```
+
+## 시뮬레이션 실행 (그래픽 없음)
+
+```sh
+uv run python -m paleosphere.run --seed 42 --map map_a --predator rule --ticks 2000
+uv run python -m paleosphere.run --seed 42 --predator random
+uv run python -m paleosphere.run --seed 42 --replay replays/seed42.jsonl --replay-every 2
+```

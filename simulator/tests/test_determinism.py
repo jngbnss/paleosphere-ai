@@ -62,6 +62,8 @@ def test_rule_based_golden(seed):
     path = GOLDEN_DIR / f"rule_map_a_seed{seed}.json"
     if os.environ.get("UPDATE_GOLDEN") == "1":
         GOLDEN_DIR.mkdir(exist_ok=True)
-        path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+        )
     golden = json.loads(path.read_text(encoding="utf-8"))
     assert summary == golden
