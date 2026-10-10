@@ -142,7 +142,7 @@ paleosphere-ai/
 
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
-| 4.1 | Pydantic 스키마 + protocol.md | ⬜ 대기 | 스키마 검증 테스트 | |
+| 4.1 | Pydantic 스키마 + protocol.md | 🔄 진행중 | 스키마 검증 테스트 | |
 | 4.2 | FastAPI `/ws/sim`, `/predict`, `/health`, `/policies` | ⬜ 대기 | TestClient로 스냅샷 수신 | |
 | 4.3 | Godot 프로젝트 + WebSocket 클라이언트 + 렌더링 | ⬜ 대기 | `godot --headless --quit` 에러 없음 | Godot 설치 필요 |
 | 4.4 | 관찰자 UI (정책 선택, 속도, 선택 패널, 라벨, 그래프) | ⬜ 대기 | 서버 연결 후 화면 확인 | |
