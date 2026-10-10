@@ -94,5 +94,19 @@
 
 포식자가 모르는 정보(시야 밖 개체, 식물 위치, 다른 초식의 상태)는 넣지 않는다.
 
-## 6. Gymnasium 환경
-Phase 2에서 확정 (`PaleoSpherePredator-v0`).
+## 6. Gymnasium 환경 — `PaleoSpherePredator-v0`
+`training/environments/predator_env.py`
+
+| 항목 | 값 |
+|---|---|
+| 학습 개체 | 포식자 1. 초식 8은 `RuleBasedHerbivore` |
+| step | 1 tick |
+| reset | `seed`로 env RNG 초기화 → 에피소드 seed를 학습 범위 [0, 10000)에서 뽑음. `options={"episode_seed": n}`으로 직접 지정 (평가용) |
+| terminated | 포식자 사망 또는 초식 전멸 |
+| truncated | `max_steps`(기본 2000) 도달, terminated가 아닐 때만 |
+| 보상 | `configs/rewards/<version>.yaml`, component별로 `info["reward_components"]` |
+| 에피소드 끝 info | `episode_summary` (EpisodeSummary), `episode_reward_components` (합계) |
+| 사망 후 관찰 | 0 벡터 |
+
+검사: `gymnasium.utils.env_checker.check_env` 통과, 같은 episode seed + 같은 행동열 → 같은 보상열,
+규칙 정책으로 env를 구동한 결과가 순수 시뮬레이터 실행과 같은 스냅샷 해시.
