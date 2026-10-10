@@ -1,0 +1,19 @@
+# 규칙 기반 정책 기준선 수치 (AI 아님, PPO 비교 기준선)
+predator:
+  thirst_go_water: 70.0      # 이 값 초과면 물로
+  thirst_done: 15.0          # 물가에서 이 값 이하가 될 때까지 마심
+  energy_rest: 20.0          # 이 값 미만이면 휴식
+  energy_rested: 60.0        # 휴식 중이면 이 값까지 회복
+  hunger_rest: 30.0          # 배고픔이 이 값 미만이면 사냥하지 않고 휴식
+  give_up_chase_ticks: 80    # 추격이 이보다 길어지면 포기
+  chase_distance: 10.0       # 이 거리 이내면 질주 추격
+
+herbivore:
+  flee_distance: 8.0
+  flee_release_multiplier: 1.5  # 도주 중이면 flee_distance * 이 값까지 계속 도주
+  thirst_go_water: 60.0
+  thirst_done: 15.0
+  hunger_go_food: 50.0
+  hunger_done: 15.0
+  energy_rest: 20.0
+  energy_rested: 60.0
