@@ -32,3 +32,17 @@ jobs:
         run: uv run python -c "from gymnasium.utils.env_checker import check_env; from training.environments import PredatorEnv; check_env(PredatorEnv(max_steps=200), skip_render_check=True); print('check_env ok')"
       - name: PPO smoke training
         run: uv run python -m training.scripts.train_ppo --smoke --run-name ci_smoke
+
+  godot:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Godot 4.7.2
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          unzip -q godot.zip
+      - name: Import project headless (script parse check)
+        run: |
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path godot --import 2>&1 | tee godot.log
+          ! grep -E "SCRIPT ERROR|Parse Error" godot.log
