@@ -42,6 +42,7 @@ class Dino:
     ignored_target_id: str | None = None
     ignore_until: int = -1
     waypoint: np.ndarray | None = None
+    sprinting: bool = False
     death_cause: DeathCause | None = None
 
     @property
