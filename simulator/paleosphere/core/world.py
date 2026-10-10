@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Mapping
 
 import numpy as np
@@ -31,6 +32,7 @@ from paleosphere.resources import PlantPatch, WaterSource, generate_map
 MIN_EDIBLE_FOOD = 5.0
 WAYPOINT_REACHED = 1.0
 BORDER_MARGIN = 6.0
+ROCK_CLEARANCE = 0.3
 
 
 class World:
@@ -44,6 +46,9 @@ class World:
         self.plants = gen.plants
         self.waters = gen.waters
         self.rocks = gen.rocks
+        self._rock_shapes = [
+            (float(r.pos[0]), float(r.pos[1]), r.radius + ROCK_CLEARANCE) for r in self.rocks
+        ]
         self.dinos: dict[str, Dino] = {d.agent_id: d for d in sorted(gen.dinos, key=_id)}
         self.tick = 0
         self.is_night = False
@@ -190,19 +195,24 @@ class World:
             elif action == HerbivoreAction.GO_TO_WATER:
                 goal, speed = self._water_goal(dino), sp.walk_speed
 
-        old = dino.pos.copy()
+        # Plain float math: numpy overhead on 2-element arrays dominated the tick cost.
+        ox, oz = float(dino.pos[0]), float(dino.pos[1])
+        x, z = ox, oz
         if goal is not None:
-            offset = goal - dino.pos
-            step = min(speed, float(np.hypot(*offset)))
-            new = dino.pos + unit(offset) * step
+            dx, dz = float(goal[0]) - x, float(goal[1]) - z
+            dist = math.hypot(dx, dz)
+            if dist > 1e-9:
+                step = min(speed, dist)
+                x += dx / dist * step
+                z += dz / dist * step
         elif direction is not None:
-            new = dino.pos + direction * speed
-        else:
-            new = dino.pos.copy()
-        new = self._resolve_collisions(new)
-        dino.vel = new - old
-        dino.pos = new
-        dino.sprinting = sprint and dino.speed > sp.walk_speed + 1e-9
+            x += float(direction[0]) * speed
+            z += float(direction[1]) * speed
+        x, z = self._resolve_collisions(x, z)
+        vx, vz = x - ox, z - oz
+        dino.vel = np.array([vx, vz])
+        dino.pos = np.array([x, z])
+        dino.sprinting = sprint and math.hypot(vx, vz) > sp.walk_speed + 1e-9
 
     def _wander_goal(self, dino: Dino) -> np.ndarray:
         if dino.waypoint is None or distance(dino.pos, dino.waypoint) < WAYPOINT_REACHED:
@@ -232,17 +242,18 @@ class World:
         d = unit(away + center_pull)
         return d if np.any(d) else unit(np.array([self.size / 2, self.size / 2]) - dino.pos)
 
-    def _resolve_collisions(self, pos: np.ndarray) -> np.ndarray:
-        pos = pos.copy()
-        for rock in self.rocks:
-            gap = distance(pos, rock.pos)
-            min_gap = rock.radius + 0.3
-            if gap < min_gap:
-                normal = unit(pos - rock.pos)
-                if not np.any(normal):
-                    normal = np.array([1.0, 0.0])
-                pos = rock.pos + normal * min_gap
-        return np.clip(pos, 0.0, self.size)
+    def _resolve_collisions(self, x: float, z: float) -> tuple[float, float]:
+        """Push a point out of rocks, then clamp it to the map."""
+        for rx, rz, min_gap in self._rock_shapes:
+            dx, dz = x - rx, z - rz
+            d2 = dx * dx + dz * dz
+            if d2 < min_gap * min_gap:
+                d = math.sqrt(d2)
+                if d < 1e-9:
+                    dx, dz, d = 1.0, 0.0, 1.0
+                x, z = rx + dx / d * min_gap, rz + dz / d * min_gap
+        size = self.size
+        return min(max(x, 0.0), size), min(max(z, 0.0), size)
 
     def _resolve_attacks(self, decided: Mapping[str, object]) -> None:
         for agent_id, action in decided.items():

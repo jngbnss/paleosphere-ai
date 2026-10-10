@@ -12,3 +12,4 @@
 | D-008 | 2026-10-11 | map_b(물 이동, 식물 −40%)는 학습에 사용 안 함 | 보지 않은 자원 배치 일반화 평가 | 무작위 맵 학습 |
 | D-009 | 2026-10-11 | numpy `<2.5` 고정 | 이 PC에서 numpy 2.5.x의 `_common` DLL이 Windows 애플리케이션 제어(Smart App Control)에 차단됨. 2.4.6은 정상 | 정책 해제 |
 | D-010 | 2026-10-11 | shaping potential을 Φ = coef·(1 − d/vision) ≥ 0으로 정의 | Φ ≤ 0이면 γ<1에서 제자리 대기가 (1−γ)|Φ| 만큼 양의 보상을 받음 (테스트로 발견) | Φ = −coef·d/vision |
+| D-011 | 2026-10-11 | 학습 시 `torch.set_num_threads(1)`, 이동·충돌은 float 연산 | 12 스레드에서 PPO 150 steps/s → 1 스레드 1,150. numpy 2원소 배열 오버헤드 제거로 env 단일 650 → 2,570 steps/s. 결과 해시는 동일 | 기본 스레드, numpy 벡터 연산 |
