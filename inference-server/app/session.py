@@ -6,6 +6,7 @@ from app.schemas import (
     CLIENT_POLICY,
     DinoState,
     EventState,
+    ExplorerState,
     Metrics,
     PlantState,
     RockState,
@@ -18,6 +19,7 @@ from paleosphere.core.events import EventKind
 from paleosphere.core.world import World
 from paleosphere.entities import Species
 from paleosphere.explain import status_code, status_label
+from paleosphere.explorer import FieldJournal
 from paleosphere.logging.episode import EpisodeTracker
 from paleosphere.policies import RuleBasedHerbivore, predator_observation
 from paleosphere.policies.base import Policy
@@ -70,6 +72,7 @@ class SimSession:
         self.predator_id = self.world.alive(Species.PREDATOR)[0].agent_id
         self.tracker = EpisodeTracker(self.world, self.predator_id, cmd.predator_policy)
         self.last_events: list = []
+        self.journal = FieldJournal(self.world) if cmd.explorer else None
 
     @property
     def done(self) -> bool:
@@ -112,7 +115,23 @@ class SimSession:
         energy_before = self.tracker.predator.energy
         self.last_events = world.step(actions)
         self.births += sum(e.kind == EventKind.BIRTH for e in self.last_events)
+        if self.journal is not None:
+            self.journal.witness(world, self.last_events)
         self.tracker.record(actions, energy_before, self.last_events)
+
+    def _explorer_state(self) -> ExplorerState | None:
+        j = self.journal
+        if j is None:
+            return None
+        return ExplorerState(
+            position=(round(float(j.position[0]), 3), round(float(j.position[1]), 3)),
+            scan_radius=j.scan_radius,
+            view_radius=j.view_radius,
+            scans=j.scans,
+            identified=len(j.records),
+            explored_fraction=round(j.explored_fraction, 3),
+            explored=j.explored.tolist(),
+        )
 
     def snapshot(self) -> Snapshot:
         w = self.world
@@ -154,6 +173,7 @@ class SimSession:
                 predators_alive=len(w.alive(Species.PREDATOR)),
                 births=self.births,
             ),
+            explorer=self._explorer_state(),
             predator_observation=(
                 predator_observation(w, self.predator_id).tolist()
                 if self.client_mode and not self.done

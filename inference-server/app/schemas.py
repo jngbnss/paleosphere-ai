@@ -86,6 +86,16 @@ class Metrics(_Model):
     births: int = 0  # cumulative, ecosystem map only
 
 
+class ExplorerState(_Model):
+    position: tuple[float, float]
+    scan_radius: float
+    view_radius: float
+    scans: int
+    identified: int
+    explored_fraction: float
+    explored: list[list[bool]] = Field(description="GRID x GRID cells, [x][z]")
+
+
 class Snapshot(_Model):
     type: Literal["snapshot"] = "snapshot"
     protocol_version: int = PROTOCOL_VERSION
@@ -105,11 +115,42 @@ class Snapshot(_Model):
     rocks: list[RockState]
     events: list[EventState]
     metrics: Metrics
+    explorer: ExplorerState | None = Field(None, description="explorer mode only")
     predator_observation: list[float] | None = Field(
         None,
         description=f"client mode only: the {OBS_DIM}-dim predator observation at this tick; "
         "reply with an `action` command for the same tick",
     )
+
+
+class Sighting(_Model):
+    agent_id: str
+    species: Literal["herbivore", "predator"]
+    position: tuple[float, float]
+    distance: float
+    alive: bool
+    status_label: str
+    current_action: str
+    health: float
+    energy: float
+    hunger: float
+    thirst: float
+    new: bool = Field(description="first time this individual is identified")
+
+
+class ScanResult(_Model):
+    type: Literal["scan_result"] = "scan_result"
+    tick: int
+    position: tuple[float, float]
+    radius: float
+    sightings: list[Sighting]
+
+
+class FieldReport(_Model):
+    type: Literal["report"] = "report"
+    tick: int
+    markdown: str
+    stats: dict
 
 
 class ErrorMessage(_Model):
@@ -132,6 +173,7 @@ class StartCommand(_Model):
     map: Literal["map_a", "map_b", "ecosystem"] = "map_a"
     predator_policy: str = "rule"
     herbivore_policy: str = Field("rule", description="rule | random | herd-<name> model")
+    explorer: bool = Field(False, description="explorer mode: a field researcher at map center")
     ticks_per_second: float = Field(10.0, gt=0, le=200)
 
 
@@ -161,8 +203,25 @@ class ActionCommand(_Model):
     action: int = Field(ge=0, le=6, description="PredatorAction id")
 
 
+class ExplorerMoveCommand(_Model):
+    """Explorer mode: walk to (x, z) (clamped to the map). Does not affect the simulation."""
+
+    type: Literal["explorer_move"]
+    x: float
+    z: float
+
+
+class ScanCommand(_Model):
+    type: Literal["scan"]
+
+
+class ReportCommand(_Model):
+    type: Literal["report"]
+
+
 ControlCommand = Annotated[
-    StartCommand | PauseCommand | ResumeCommand | SetSpeedCommand | StepCommand | ActionCommand,
+    StartCommand | PauseCommand | ResumeCommand | SetSpeedCommand | StepCommand | ActionCommand
+    | ExplorerMoveCommand | ScanCommand | ReportCommand,
     Field(discriminator="type"),
 ]
 control_adapter: TypeAdapter[ControlCommand] = TypeAdapter(ControlCommand)

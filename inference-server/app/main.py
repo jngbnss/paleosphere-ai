@@ -21,12 +21,17 @@ from app.schemas import (
     MAPS,
     ActionCommand,
     ErrorMessage,
+    ExplorerMoveCommand,
+    FieldReport,
     Hello,
     PauseCommand,
     PolicyInfo,
     PredictRequest,
     PredictResponse,
+    ReportCommand,
     ResumeCommand,
+    ScanCommand,
+    ScanResult,
     SetSpeedCommand,
     StartCommand,
     StepCommand,
@@ -148,6 +153,26 @@ async def ws_sim(ws: WebSocket) -> None:
                 session.paused = False
             elif isinstance(cmd, SetSpeedCommand):
                 session.ticks_per_second = cmd.ticks_per_second
+            elif isinstance(cmd, ExplorerMoveCommand | ScanCommand | ReportCommand):
+                journal = session.journal
+                if journal is None:
+                    await send(ErrorMessage(message="start with explorer: true first"))
+                    continue
+                if isinstance(cmd, ExplorerMoveCommand):
+                    journal.move_to(cmd.x, cmd.z)
+                    if session.paused or session.done:
+                        await send(session.snapshot())  # show the move while time stands still
+                elif isinstance(cmd, ScanCommand):
+                    w = session.world
+                    await send(ScanResult(
+                        tick=w.tick, position=tuple(map(float, journal.position)),
+                        radius=journal.scan_radius, sightings=journal.scan(w),
+                    ))
+                else:
+                    w = session.world
+                    await send(FieldReport(tick=w.tick, markdown=journal.report(w),
+                                           stats=journal.stats(w)))
+                continue
             elif isinstance(cmd, ActionCommand):
                 error = session.set_client_action(cmd.tick, cmd.action)
                 if error:

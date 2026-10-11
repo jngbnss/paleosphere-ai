@@ -11,6 +11,16 @@ Python 시뮬레이션 서버(`inference-server/app`)와 Godot 뷰어 사이의 
 4. 서버 → 매 tick `snapshot` (실행 중일 때). `pause` / `resume` / `set_speed` / `step`으로 제어
 5. 오류 시 서버 → `error`
 
+### 탐험자 모드
+
+`start.explorer = true`이면 맵 중앙에 탐험자(현장 연구자)가 생긴다. 탐험자는 시뮬레이션에 영향을
+주지 않는다 (공룡이 보지 못하고 world 상태를 바꾸지 않음 → 해시 동일).
+
+- `explorer_move` (x, z): 이동. 스냅샷의 `explorer`에 위치·탐사 격자가 실린다
+- `scan`: 반경 안 공룡을 식별 → `scan_result`. 현장 기록에 쌓인다
+- `report`: 현장 기록 → `report` (마크다운 보고서 + 통계, 추정 개체수 vs 실제)
+- 시야 반경 안에서 일어난 사냥·죽음·출생은 매 tick 자동으로 목격 기록에 남는다
+
 ### client 모드 (Godot 내부 추론)
 
 `start.predator_policy = "client"`이면 포식자 행동을 뷰어가 정한다.
@@ -234,6 +244,67 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         "data"
       ],
       "title": "EventState",
+      "type": "object"
+    },
+    "ExplorerState": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "scan_radius": {
+          "title": "Scan Radius",
+          "type": "number"
+        },
+        "view_radius": {
+          "title": "View Radius",
+          "type": "number"
+        },
+        "scans": {
+          "title": "Scans",
+          "type": "integer"
+        },
+        "identified": {
+          "title": "Identified",
+          "type": "integer"
+        },
+        "explored_fraction": {
+          "title": "Explored Fraction",
+          "type": "number"
+        },
+        "explored": {
+          "description": "GRID x GRID cells, [x][z]",
+          "items": {
+            "items": {
+              "type": "boolean"
+            },
+            "type": "array"
+          },
+          "title": "Explored",
+          "type": "array"
+        }
+      },
+      "required": [
+        "position",
+        "scan_radius",
+        "view_radius",
+        "scans",
+        "identified",
+        "explored_fraction",
+        "explored"
+      ],
+      "title": "ExplorerState",
       "type": "object"
     },
     "Metrics": {
@@ -485,6 +556,18 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
     "metrics": {
       "$ref": "#/$defs/Metrics"
     },
+    "explorer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExplorerState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "explorer mode only"
+    },
     "predator_observation": {
       "anyOf": [
         {
@@ -600,6 +683,181 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
 }
 ```
 
+## Server → Client: ScanResult (탐험자)
+
+```json
+{
+  "$defs": {
+    "Sighting": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "species": {
+          "enum": [
+            "herbivore",
+            "predator"
+          ],
+          "title": "Species",
+          "type": "string"
+        },
+        "position": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "distance": {
+          "title": "Distance",
+          "type": "number"
+        },
+        "alive": {
+          "title": "Alive",
+          "type": "boolean"
+        },
+        "status_label": {
+          "title": "Status Label",
+          "type": "string"
+        },
+        "current_action": {
+          "title": "Current Action",
+          "type": "string"
+        },
+        "health": {
+          "title": "Health",
+          "type": "number"
+        },
+        "energy": {
+          "title": "Energy",
+          "type": "number"
+        },
+        "hunger": {
+          "title": "Hunger",
+          "type": "number"
+        },
+        "thirst": {
+          "title": "Thirst",
+          "type": "number"
+        },
+        "new": {
+          "description": "first time this individual is identified",
+          "title": "New",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "agent_id",
+        "species",
+        "position",
+        "distance",
+        "alive",
+        "status_label",
+        "current_action",
+        "health",
+        "energy",
+        "hunger",
+        "thirst",
+        "new"
+      ],
+      "title": "Sighting",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "scan_result",
+      "default": "scan_result",
+      "title": "Type",
+      "type": "string"
+    },
+    "tick": {
+      "title": "Tick",
+      "type": "integer"
+    },
+    "position": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Position",
+      "type": "array"
+    },
+    "radius": {
+      "title": "Radius",
+      "type": "number"
+    },
+    "sightings": {
+      "items": {
+        "$ref": "#/$defs/Sighting"
+      },
+      "title": "Sightings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "tick",
+    "position",
+    "radius",
+    "sightings"
+  ],
+  "title": "ScanResult",
+  "type": "object"
+}
+```
+
+## Server → Client: FieldReport (탐험자)
+
+```json
+{
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "report",
+      "default": "report",
+      "title": "Type",
+      "type": "string"
+    },
+    "tick": {
+      "title": "Tick",
+      "type": "integer"
+    },
+    "markdown": {
+      "title": "Markdown",
+      "type": "string"
+    },
+    "stats": {
+      "additionalProperties": true,
+      "title": "Stats",
+      "type": "object"
+    }
+  },
+  "required": [
+    "tick",
+    "markdown",
+    "stats"
+  ],
+  "title": "FieldReport",
+  "type": "object"
+}
+```
+
 ## Client → Server: ControlCommand
 
 ```json
@@ -635,6 +893,32 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
       "title": "ActionCommand",
       "type": "object"
     },
+    "ExplorerMoveCommand": {
+      "additionalProperties": false,
+      "description": "Explorer mode: walk to (x, z) (clamped to the map). Does not affect the simulation.",
+      "properties": {
+        "type": {
+          "const": "explorer_move",
+          "title": "Type",
+          "type": "string"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "z"
+      ],
+      "title": "ExplorerMoveCommand",
+      "type": "object"
+    },
     "PauseCommand": {
       "additionalProperties": false,
       "properties": {
@@ -650,6 +934,21 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
       "title": "PauseCommand",
       "type": "object"
     },
+    "ReportCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "report",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ReportCommand",
+      "type": "object"
+    },
     "ResumeCommand": {
       "additionalProperties": false,
       "properties": {
@@ -663,6 +962,21 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         "type"
       ],
       "title": "ResumeCommand",
+      "type": "object"
+    },
+    "ScanCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "scan",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ScanCommand",
       "type": "object"
     },
     "SetSpeedCommand": {
@@ -721,6 +1035,12 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
           "title": "Herbivore Policy",
           "type": "string"
         },
+        "explorer": {
+          "default": false,
+          "description": "explorer mode: a field researcher at map center",
+          "title": "Explorer",
+          "type": "boolean"
+        },
         "ticks_per_second": {
           "default": 10.0,
           "exclusiveMinimum": 0,
@@ -761,8 +1081,11 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
   "discriminator": {
     "mapping": {
       "action": "#/$defs/ActionCommand",
+      "explorer_move": "#/$defs/ExplorerMoveCommand",
       "pause": "#/$defs/PauseCommand",
+      "report": "#/$defs/ReportCommand",
       "resume": "#/$defs/ResumeCommand",
+      "scan": "#/$defs/ScanCommand",
       "set_speed": "#/$defs/SetSpeedCommand",
       "start": "#/$defs/StartCommand",
       "step": "#/$defs/StepCommand"
@@ -787,6 +1110,15 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
     },
     {
       "$ref": "#/$defs/ActionCommand"
+    },
+    {
+      "$ref": "#/$defs/ExplorerMoveCommand"
+    },
+    {
+      "$ref": "#/$defs/ScanCommand"
+    },
+    {
+      "$ref": "#/$defs/ReportCommand"
     }
   ]
 }

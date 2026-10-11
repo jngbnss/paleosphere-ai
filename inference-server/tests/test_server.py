@@ -208,3 +208,42 @@ def test_learned_herd_policy_session(client):
         while msg["type"] != "error":
             msg = ws.receive_json()
         assert "herbivore" in msg["message"]
+
+
+def test_explorer_mode_scan_and_report(client):
+    with client.websocket_connect("/ws/sim") as ws:
+        ws.receive_json()
+        ws.send_text(json.dumps({"type": "start", "seed": 10000, "explorer": True,
+                                 "ticks_per_second": 1}))
+        first = ws.receive_json()
+        assert first["explorer"]["position"] == [32.0, 32.0]
+        ws.send_text(json.dumps({"type": "pause"}))
+        msg = ws.receive_json()
+        while not msg["paused"]:
+            msg = ws.receive_json()
+        herd = next(d for d in msg["dinos"] if d["species"] == "herbivore")
+        ws.send_text(json.dumps({"type": "explorer_move", "x": herd["position"][0],
+                                 "z": herd["position"][1]}))
+        moved = ws.receive_json()
+        assert moved["explorer"]["position"] == [round(v, 3) for v in herd["position"]]
+        ws.send_text(json.dumps({"type": "scan"}))
+        scan = ws.receive_json()
+        assert scan["type"] == "scan_result"
+        assert scan["sightings"][0]["agent_id"] == herd["agent_id"]
+        ws.send_text(json.dumps({"type": "report"}))
+        report = ws.receive_json()
+        assert report["type"] == "report" and "현장 보고서" in report["markdown"]
+        assert report["stats"]["identified"]["herbivore"] >= 1
+
+
+def test_explorer_commands_need_explorer_mode(client):
+    with client.websocket_connect("/ws/sim") as ws:
+        ws.receive_json()
+        ws.send_text(json.dumps({"type": "start", "ticks_per_second": 1}))
+        first = ws.receive_json()
+        assert first["explorer"] is None
+        ws.send_text(json.dumps({"type": "scan"}))
+        msg = ws.receive_json()
+        while msg["type"] != "error":
+            msg = ws.receive_json()
+        assert "explorer" in msg["message"]

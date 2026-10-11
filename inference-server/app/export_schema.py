@@ -23,6 +23,16 @@ Python 시뮬레이션 서버(`inference-server/app`)와 Godot 뷰어 사이의 
 4. 서버 → 매 tick `snapshot` (실행 중일 때). `pause` / `resume` / `set_speed` / `step`으로 제어
 5. 오류 시 서버 → `error`
 
+### 탐험자 모드
+
+`start.explorer = true`이면 맵 중앙에 탐험자(현장 연구자)가 생긴다. 탐험자는 시뮬레이션에 영향을
+주지 않는다 (공룡이 보지 못하고 world 상태를 바꾸지 않음 → 해시 동일).
+
+- `explorer_move` (x, z): 이동. 스냅샷의 `explorer`에 위치·탐사 격자가 실린다
+- `scan`: 반경 안 공룡을 식별 → `scan_result`. 현장 기록에 쌓인다
+- `report`: 현장 기록 → `report` (마크다운 보고서 + 통계, 추정 개체수 vs 실제)
+- 시야 반경 안에서 일어난 사냥·죽음·출생은 매 tick 자동으로 목격 기록에 남는다
+
 ### client 모드 (Godot 내부 추론)
 
 `start.predator_policy = "client"`이면 포식자 행동을 뷰어가 정한다.
@@ -43,6 +53,8 @@ SECTIONS = [
     ("Server → Client: Snapshot", schemas.Snapshot),
     ("Server → Client: Hello", schemas.Hello),
     ("Server → Client: Error", schemas.ErrorMessage),
+    ("Server → Client: ScanResult (탐험자)", schemas.ScanResult),
+    ("Server → Client: FieldReport (탐험자)", schemas.FieldReport),
     ("Client → Server: ControlCommand", schemas.control_adapter),
     ("POST /predict 요청", schemas.PredictRequest),
     ("POST /predict 응답", schemas.PredictResponse),
