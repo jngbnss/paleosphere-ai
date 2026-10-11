@@ -8,6 +8,8 @@ signal disconnected
 signal hello_received(policies: Array, maps: Array, herbivore_policies: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal error_received(message: String)
+signal scan_received(scan: Dictionary)
+signal report_received(report: Dictionary)
 
 var url := "ws://127.0.0.1:8790/ws/sim"
 var _ws := WebSocketPeer.new()
@@ -62,3 +64,7 @@ func _handle(text: String) -> void:
 			snapshot_received.emit(msg)
 		"error":
 			error_received.emit(String(msg["message"]))
+		"scan_result":
+			scan_received.emit(msg)
+		"report":
+			report_received.emit(msg)

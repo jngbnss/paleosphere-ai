@@ -54,6 +54,18 @@ class Record:
     generation: int | None = None
 
 
+def _describe(w: dict) -> str:
+    kind, who, other = w["kind"], w["agent_id"], w.get("target_id")
+    if kind == EventKind.DEATH:
+        by = f", {other}에게" if other else ""
+        return f"{who} 사망 ({w.get('cause')}{by})"
+    if kind == EventKind.BIRTH:
+        return f"{who}가 {other}를 낳음"
+    if kind == EventKind.KILL:
+        return f"{who}가 {other} 사냥 성공"
+    return f"{who}가 {other} 공격 실패"
+
+
 class FieldJournal:
     def __init__(self, world: World, scan_radius: float = SCAN_RADIUS,
                  view_radius: float = VIEW_RADIUS):
@@ -144,6 +156,8 @@ class FieldJournal:
                      "agent_id": e.agent_id, "target_id": e.target_id}
             if e.kind == EventKind.DEATH:
                 entry["cause"] = e.data.get("cause")
+                if e.agent_id in self.records:  # a witnessed death updates the journal
+                    self.records[e.agent_id].alive_when_last_seen = False
             self.witnessed.append(entry)
             noted.append(entry)
         return noted
@@ -191,7 +205,8 @@ class FieldJournal:
                 f"{st['estimated_alive'][s.value]} | {st['actual_alive'][s.value]} |"
             )
         lines += ["", f"추정은 최근 {RECENT_TICKS} tick 안에 살아 있는 채로 스캔한 개체 수다. "
-                  "보지 못한 개체는 세지 않으므로 실제보다 작게 나온다.", ""]
+                  "보지 못한 개체는 빠지고, 마지막 관찰 뒤 아무도 못 본 죽음은 남아 있어 "
+                  "실제와 다를 수 있다.", ""]
 
         lines += ["## 관찰한 행동", ""]
         for s in Species:
@@ -212,9 +227,7 @@ class FieldJournal:
         if not self.witnessed:
             lines.append("- 없음")
         for w in self.witnessed[-15:]:
-            detail = f" ({w['cause']})" if w.get("cause") else ""
-            target = f" → {w['target_id']}" if w.get("target_id") else ""
-            lines.append(f"- tick {w['tick']}: {w['label']}{detail} — {w['agent_id']}{target}")
+            lines.append(f"- tick {w['tick']}: {_describe(w)}")
         if len(self.witnessed) > 15:
             lines.append(f"- … 외 {len(self.witnessed) - 15}건")
 

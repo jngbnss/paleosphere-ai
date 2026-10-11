@@ -13,10 +13,14 @@ const COLOR_PLANT := Color("8bbf6a")
 const COLOR_WATER := Color("5aa0c8")
 const COLOR_ROCK := Color("8a8580")
 const COLOR_INK := Color("25323b")
+const COLOR_EXPLORER := Color("2f6fb5")
+const COLOR_FOG := Color(0.11, 0.13, 0.15, 0.82)
+const SCAN_HIGHLIGHT_SEC := 2.5
 
 var snapshot: Dictionary = {}
 var selected_id := "predator-000"
 var show_vision := true
+var explorer: Explorer = null  # explorer mode: fog of war + researcher marker
 
 var _prev_pos: Dictionary = {}
 var _curr_pos: Dictionary = {}
@@ -92,12 +96,17 @@ func _draw() -> void:
 		draw_circle(_to_screen(_vec(p["position"])), float(p["radius"]) * s, c)
 	for r in snapshot["rocks"]:
 		draw_circle(_to_screen(_vec(r["position"])), float(r["radius"]) * s, COLOR_ROCK)
+	var exploring := explorer != null and explorer.active
+	if exploring:
+		_draw_fog(map_px)
 
 	var t := _alpha()
 	var font := get_theme_default_font()
 	for d in snapshot["dinos"]:
 		var id := String(d["agent_id"])
 		var pos := _to_screen(_lerp_pos(id, t))
+		if exploring and not explorer.can_see(_lerp_pos(id, t)):
+			continue  # out of the researcher's sight
 		var alive := bool(d["alive"])
 		var is_pred := String(d["species"]) == "predator"
 		if is_pred and alive and show_vision and d.has("vision"):
@@ -113,10 +122,46 @@ func _draw() -> void:
 			draw_colored_polygon(xf * pts, col)
 		else:
 			draw_circle(pos, 7.0, col)
+		if exploring and explorer.last_scan.has(id) and explorer.last_scan_age < SCAN_HIGHLIGHT_SEC:
+			var fade := 1.0 - explorer.last_scan_age / SCAN_HIGHLIGHT_SEC
+			draw_arc(pos, 11.0 + 6.0 * (1.0 - fade), 0.0, TAU, 32, Color(COLOR_EXPLORER, fade), 2.0)
 		if id == selected_id:
 			draw_arc(pos, 13.0, 0.0, TAU, 32, COLOR_INK, 2.0)
 			var label := String(d.get("status_label", d.get("current_action", "")))
 			draw_string(font, pos + Vector2(15, -12), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, COLOR_INK)
+
+
+	if exploring:
+		_draw_explorer(s, font)
+
+
+func _draw_fog(map_px: float) -> void:
+	"""Dim map cells the researcher has never been near (grid from the server)."""
+	var grid: Array = snapshot.get("explorer", {}).get("explored", [])
+	if grid.is_empty():
+		return
+	var n := grid.size()
+	var cell := map_px / n
+	for i in n:
+		for j in n:
+			if not bool(grid[i][j]):
+				draw_rect(Rect2(Vector2(i * cell, j * cell), Vector2(cell + 0.5, cell + 0.5)), COLOR_FOG)
+
+
+func _draw_explorer(s: float, font: Font) -> void:
+	var p := _to_screen(explorer.position)
+	draw_arc(p, explorer.view_radius * s, 0.0, TAU, 72, Color(COLOR_EXPLORER, 0.35), 1.5)
+	var dashes := 36
+	for k in dashes:
+		if k % 2 == 0:
+			var a0 := TAU * k / dashes
+			draw_arc(p, explorer.scan_radius * s, a0, a0 + TAU / dashes, 4,
+				Color(COLOR_EXPLORER, 0.8), 1.5)
+	var body := PackedVector2Array([p + Vector2(0, -10), p + Vector2(8, 0), p + Vector2(0, 10),
+		p + Vector2(-8, 0)])
+	draw_colored_polygon(body, COLOR_EXPLORER)
+	draw_polyline(body + PackedVector2Array([body[0]]), Color.WHITE, 1.5)
+	draw_string(font, p + Vector2(11, 18), "연구자", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, COLOR_EXPLORER)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -127,6 +172,8 @@ func _gui_input(event: InputEvent) -> void:
 		var best := ""
 		var best_d := 3.0
 		for d in snapshot["dinos"]:
+			if explorer != null and not explorer.can_see(_vec(d["position"])):
+				continue
 			var dist := world_pos.distance_to(_vec(d["position"]))
 			if dist < best_d:
 				best_d = dist

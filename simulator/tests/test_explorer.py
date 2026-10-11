@@ -56,3 +56,17 @@ def test_witnesses_kills_in_view():
     step(world, journal, n=2000)
     kinds = {w["kind"] for w in journal.witnessed}
     assert "kill" in kinds and "death" in kinds
+
+
+def test_witnessed_death_updates_estimate():
+    world = World(load_world_config("map_a"), 10000)
+    journal = FieldJournal(world, scan_radius=200.0, view_radius=200.0)
+    journal.scan(world)
+    step(world, journal, n=2000)
+    dead_seen = {w["agent_id"] for w in journal.witnessed if w["kind"] == "death"}
+    assert dead_seen
+    assert all(not journal.records[a].alive_when_last_seen for a in dead_seen)
+    journal.scan(world)
+    stats = journal.stats(world)
+    assert stats["estimated_alive"] == stats["actual_alive"]  # saw everything, missed nothing
+    assert "사냥 성공" in journal.report(world)
