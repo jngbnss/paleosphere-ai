@@ -144,3 +144,42 @@ Experiment 003: 보상 v2 — `thirst_penalty` −0.01·thirst/100 (hunger와 �
 
 ### 다음 실험 후보
 drink_reward 0.2 → 0.1로 낮춰 물가 머무름 확인, γ 0.995로 장기 생존 신호 강화, 초식공룡 학습(다중 에이전트)은 MVP 이후.
+
+---
+
+## Experiment 004 — 개체수 시계열 예측 (번식·노화 ecosystem)
+
+| 항목 | 내용 |
+|---|---|
+| 가설 | 번식이 있는 생태계의 개체수는 최근 이력(1,000 tick)으로 단순 지속(persistence)보다 정확히 예측할 수 있고, 비선형 모델(GBM)이 선형보다 낫다 |
+| 환경 | `configs/world/ecosystem.yaml` — map_a 규칙 + 번식·노화 (초식 12 · 포식자 2로 시작, 상한 50 / 4), 20,000 tick |
+| 정책 | 초식·포식자 모두 규칙 기반 (학습 정책 아님 — 생태계 동역학만 본다) |
+| 데이터 | 40 seed × 50 tick 간격 = 14,094행 (`analytics/reports/exp004/population.csv`). 끝 상태: 공존 25 · 전멸 14 · 초식만 1 |
+| 과제 | 시점 t의 최근 20 샘플(1,000 tick) 특징 → t+500 tick, t+2,000 tick의 초식·포식자 수 |
+| 분할 | seed 단위: 학습 0–29 (9,781 샘플), 테스트 30–39 (3,235 샘플). 같은 세계가 양쪽에 들어가지 않는다 |
+| 모델 | persistence (y(t+h)=y(t)) · Ridge (표준화 특징, 변화량 예측) · HistGradientBoosting (같은 특징·목표) |
+| 재현 | `uv run python -m paleosphere.ecosystem --seeds 0-39 --ticks 20000` → `uv run python -m training.forecasting.population` |
+
+### 결과 (테스트 seed 30–39, MAE / RMSE)
+
+| horizon | target | persistence | linear | gbm |
+|---|---|---|---|---|
+| 500 tick | 초식 | 6.13 / 7.90 | 3.81 / 4.91 | **3.07 / 4.07** |
+| 500 tick | 포식자 | **0.28** / 0.61 | 0.32 / 0.52 | 0.29 / **0.49** |
+| 2,000 tick | 초식 | 13.68 / 17.08 | 11.24 / 13.55 | **9.68 / 12.30** |
+| 2,000 tick | 포식자 | 0.56 / 1.06 | 0.51 / 0.68 | **0.37 / 0.61** |
+
+그림: `analytics/reports/exp004/figures/` — `population_series.png`(seed별 개체수), `forecast_examples.png`(테스트 seed 예측), `forecast_mae.png`.
+
+### 결론
+- **가설 채택 (초식).** GBM이 persistence 대비 MAE를 500 tick에서 50%, 2,000 tick에서 29% 줄였다. 선형보다도 19% / 14% 낫다.
+- 포식자는 500 tick에선 차이가 없다. 대부분의 시간 동안 상한 4에 붙어 있어서 "그대로"가 이미 좋은 답이다. 2,000 tick에선 GBM이 MAE 34% 감소 (붕괴 시점 예측).
+- 예측 그림에서 GBM은 개체수 진동의 방향 전환(정점 → 감소)을 persistence보다 일찍 따라가지만, 진폭은 작게 잡는다 (평균 쪽으로 당김).
+
+### 한계
+- 생태계 규칙이 결정적이고 정책도 규칙 기반이라, 현실 생태계보다 예측이 쉽다.
+- 포식자 상한(4)이 자주 걸려 포식자 시계열의 정보가 적다. 상한을 늘리면 다른 동역학이 된다.
+- 초식 사망의 절반 이상이 탈진(exhaustion)이다. 규칙 기반 초식이 도망칠 때 에너지를 다 쓴다 — Phase 7에서 학습 초식과 비교.
+
+### 다음 실험 후보
+예측 불확실성(분위수 회귀), 멸종 여부 분류(2,000 tick 안에 초식 0이 되는가), PPO 포식자 생태계의 시계열 비교.

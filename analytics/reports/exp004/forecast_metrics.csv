@@ -1,0 +1,13 @@
+horizon_samples,horizon_ticks,target,model,mae,rmse,n_train,n_test
+10,500,herbivores,persistence,6.1274,7.8953,9781,3235
+10,500,herbivores,linear,3.8126,4.908,9781,3235
+10,500,herbivores,gbm,3.0703,4.0696,9781,3235
+10,500,predators,persistence,0.2835,0.6073,9781,3235
+10,500,predators,linear,0.3248,0.5164,9781,3235
+10,500,predators,gbm,0.2939,0.4885,9781,3235
+40,2000,herbivores,persistence,13.6843,17.0756,9151,3025
+40,2000,herbivores,linear,11.2373,13.5534,9151,3025
+40,2000,herbivores,gbm,9.6846,12.2984,9151,3025
+40,2000,predators,persistence,0.5633,1.0602,9151,3025
+40,2000,predators,linear,0.506,0.6801,9151,3025
+40,2000,predators,gbm,0.3742,0.6094,9151,3025
