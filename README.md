@@ -18,7 +18,7 @@
 simulator/paleosphere/   결정론적 생태계 시뮬레이션 (그래픽 없음), 정책(Random·Rule·PPO), 관찰 생성
 training/                Gymnasium 환경 PaleoSpherePredator-v0, 보상, PPO·BC 학습, 평가, hacking 탐지
 inference-server/app/    FastAPI: WebSocket 스냅샷 스트리밍, /predict, 브라우저 뷰어
-godot/                   Godot 4 2D 관찰자 뷰어 (렌더링·제어만, 시뮬레이션은 서버)
+godot/                   Godot 4 뷰어: 3D 1인칭 탐험 + 2D 관찰자 (렌더링·제어만, 시뮬레이션은 서버)
 configs/                 월드·정책·보상·학습 설정 (YAML)
 evals/                   고정 평가 seed, reward hacking 탐지 기준
 analytics/reports/       평가 CSV·요약·그래프
@@ -47,15 +47,32 @@ uv sync --all-extras
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Godot <Godot 실행 파일 경로>
    ```
-   연결되면 기본 설정(포식자 ppo, map_a)으로 바로 시작된다. 창 없이 연결만 검사: `scripts\dev.ps1 -Smoke`
+   기본은 **3D 1인칭 탐험**(아래)이다. 2D 관찰 뷰어는 `-View2D`. 창 없이 연결만 검사: `scripts\dev.ps1 -Smoke`
    또는 따로:
    ```sh
    uv run python -m app                                   # http://127.0.0.1:8790
-   godot --path godot                                     # Godot 4.7 뷰어
+   godot --path godot res://scenes/explore3d.tscn         # 3D 탐험
+   godot --path godot                                     # 2D 관찰 뷰어
    ```
    Godot이 없으면 브라우저에서 http://127.0.0.1:8790/ 를 열면 같은 데이터를 보는 간단한 뷰어가 뜬다.
 3. 뷰어에서 seed·맵·포식자 정책(rule / random / ppo)을 고르고 **시작**. 공룡을 클릭하면 상태가 보인다.
    리플레이: `uv run python -m paleosphere.run --seed 42 --replay replays/seed42.jsonl` 후 뷰어의 **리플레이 열기**.
+
+### 3D 1인칭 탐험
+
+연구원이 되어 번식 생태계(`ecosystem` 맵, 포식자 ppo · 초식 herd-v1)를 직접 걸어 다닌다.
+공룡은 기본 도형으로 조립한 저폴리 모델(초식=사우로포드, 육식=수각류)이고, 서버 시뮬레이션을 그대로 따라 움직인다.
+
+| 키 | 동작 |
+|---|---|
+| 마우스 / WASD / Shift | 둘러보기 · 걷기 · 달리기 (처음에 화면 클릭) |
+| 조준(+) | 가운데 공룡의 이름·상태·체력·배고픔·갈증 |
+| E / R | 스캔 (근처 공룡 기록) · 현장 보고서 |
+| F | 조준한 공룡 3인칭으로 따라가기 (F·WASD로 해제) |
+| M · Space · [ ] · N | 미니맵 · 일시정지 · 속도 · 새 세계 |
+
+시야 안에서 일어난 사냥·출생·죽음은 왼쪽에 알림으로 뜬다. 겹쳐 서는 무리는 화면에서만 살짝 벌려 보여 준다 (시뮬레이션 불변).
+스모크: `godot --headless --path godot res://scenes/explore3d.tscn -- --smoke [--screenshot=a.png] [--follow]`
 
 ### ONNX 내보내기 + Godot 내부 추론
 
