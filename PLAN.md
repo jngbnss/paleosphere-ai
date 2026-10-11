@@ -157,5 +157,29 @@ paleosphere-ai/
 | 5.2 | `OnnxPolicy` (onnxruntime, torch 불필요) + 서버 `models/*.onnx` 등록 | ✅ 완료 | 같은 seed에서 PPOPolicy와 에피소드 해시 일치, `/predict` 응답 | ppo-v2: map_a·map_b × seed 5개 = 10 에피소드 SB3·ONNX·MLP 해시 모두 일치. ONNX 약 5,400 steps/s (SB3 2,250). 서버 `ppo-v2-onnx` 등록·/predict 응답, torch 미설치 시 ONNX만 노출. 88개 통과 |
 | 5.3 | Godot GDScript MLP + `client` 정책 모드 (서버는 관찰만 보내고 Godot이 행동 결정) | ✅ 완료 | Godot headless: 고정 관찰 행동 일치 + client 모드 에피소드가 서버 ppo 실행과 해시 일치 | GDScript MLP 관찰 7,623개 행동 100% 일치 (1.8초). Godot 구동 에피소드 seed 10000(사냥 7, 1413 tick)·42(사냥 4, 2000 tick)가 ONNX 실행과 해시 동일. 91개 통과. D-016·D-017 |
 
-### MVP 이후
-탐험자 모드 · 번식 + 개체수 시계열 예측 · PettingZoo 다중 에이전트
+### Phase 6 — 번식 + 개체수 시계열 예측
+
+| # | 작업 | 상태 | 스모크 테스트 | 비고 |
+|---|---|---|---|---|
+| 6.1 | 번식·노화 규칙 (config 옵트인) + `ecosystem.yaml` | 🔄 진행중 | 기존 골든 해시 불변 + ecosystem 결정성 + 출생 발생 | |
+| 6.2 | 장기 실행 러너 → 개체수 시계열 CSV | ⬜ 대기 | 20 seed × 장기 실행 CSV 생성, 멸종·공존 사례 확인 | |
+| 6.3 | 예측 모델 (기준선 → 선형 → GBM), seed 분리 평가 → Experiment 004 | ⬜ 대기 | MAE/RMSE 표 + 그래프 | |
+| 6.4 | 서버·Godot에서 ecosystem 맵 (다수 포식자, 개체수 그래프) | ⬜ 대기 | TestClient + Godot headless 스모크 | |
+
+### Phase 7 — PettingZoo 다중 에이전트 (초식공룡 학습)
+
+| # | 작업 | 상태 | 스모크 테스트 | 비고 |
+|---|---|---|---|---|
+| 7.1 | 초식 관찰·보상 + `PaleoSphereHerd-v0` PettingZoo ParallelEnv | ⬜ 대기 | `parallel_api_test` 통과 | |
+| 7.2 | 정책 공유 학습 (다중 에이전트 → SB3 VecEnv 어댑터) | ⬜ 대기 | `--smoke` 학습 완료 | |
+| 7.3 | 학습 초식 vs 규칙 초식 평가 (규칙·PPO 포식자 상대) → Experiment 005 | ⬜ 대기 | 평가 CSV + 표 | |
+
+### Phase 8 — 탐험자 모드
+
+| # | 작업 | 상태 | 스모크 테스트 | 비고 |
+|---|---|---|---|---|
+| 8.1 | 서버: 탐험자 위치·스캔·현장 기록·생태 보고서 (sim 비간섭) | ⬜ 대기 | TestClient: 스캔 결과 + 보고서, 탐험자 유무와 해시 동일 | |
+| 8.2 | Godot 탐험자 모드 (WASD 이동, 시야 안개, 스캔, 보고서 패널) | ⬜ 대기 | Godot headless 스모크 + 창 모드 스크린샷 | |
+
+### 이후 후보
+번식하는 포식자 PPO 재학습 · 초식·포식 동시 학습(self-play)
