@@ -69,12 +69,34 @@ uv run python -m training.scripts.export_onnx --model models/ppo-v2.zip
   포식자 행동은 Godot이 GDScript MLP로 직접 정한다 (`client` 모드, [protocol.md](docs/protocol.md)).
   다른 가중치: `godot --path godot -- --weights=<path>`.
 
+### 탐험자 모드
+
+오른쪽 패널 **탐험자 모드**를 켜고 **시작**하면 연구자(파란 마름모)가 맵 중앙에 선다.
+
+| 키 | 동작 |
+|---|---|
+| WASD / 화살표 | 걷기 (시야 밖 공룡은 안 보이고, 안 가 본 곳은 어둡게) |
+| E | 스캔 — 반경 안 공룡 식별, 현장 기록에 남김 |
+| R | 현장 보고서 — 식별 개체, 추정 vs 실제 개체수, 관찰한 행동, 목격한 사냥·죽음·출생 |
+
+탐험자는 시뮬레이션에 영향을 주지 않는다 (공룡이 보지 못함, 해시 동일).
+보고서는 `user://field_report_<seed>_<tick>.md`에도 저장된다.
+
+### 번식 생태계 · 학습 초식 무리
+
+- 맵 `ecosystem`: 번식·노화가 켜진 장기 실행 (20,000 tick). 개체수 그래프, 개체의 세대·부모 표시 (Experiment 004)
+- 초식 정책 `herd-v1`: 정책 공유 PPO로 학습한 초식 무리 (Experiment 005). 모델은 `models/herd-v1.zip`
+  (`train_herd --config herd_v1 --seed 2` 후 `final_model.zip` 복사)
+
 ## 시뮬레이션·학습·평가 (그래픽 없음)
 
 ```sh
 uv run python -m paleosphere.run --seed 42 --predator rule            # 에피소드 요약
 uv run python -m paleosphere.run --seed 42 --predator onnx:models/ppo-v2.onnx   # torch 없이 PPO
 uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0   # PPO (BC 사전학습 포함)
+uv run python -m paleosphere.ecosystem --seeds 0-39 --ticks 20000       # 개체수 시계열 (Exp 004)
+uv run python -m training.forecasting.population                     # 예측 모델 비교
+uv run python -m training.scripts.train_herd --config herd_v1 --seed 0  # 초식 무리 (PettingZoo)
 uv run python -m training.evaluation.evaluate \
     --policies rule random ppo=ppo:models/ppo-v2.zip \
     --sets eval_seen_map eval_unseen_map --out analytics/reports/my_eval
@@ -90,6 +112,7 @@ godot --headless --path godot -- --smoke                     # 서버 연결 스
 godot --headless --path godot -- --smoke-local --seed=10000  # Godot 내부 추론으로 에피소드 1회
 uv run python -m training.scripts.export_onnx --fixture-out models/ppo-v2.fixture.json
 godot --headless --path godot -- --mlp-check=../models/ppo-v2.fixture.json  # GDScript MLP 일치
+godot --headless --path godot -- --smoke-explorer --report-out=r.md   # 탐험자 자동 걷기·스캔·보고서
 ```
 
 ## 결과 요약
