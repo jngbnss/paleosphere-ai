@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from app.policies import PolicyRegistry
 from app.schemas import (
     CLIENT_POLICY,
+    MAPS,
     ActionCommand,
     ErrorMessage,
     Hello,
@@ -79,7 +80,7 @@ def web_viewer() -> FileResponse:
 @app.websocket("/ws/sim")
 async def ws_sim(ws: WebSocket) -> None:
     await ws.accept()
-    await ws.send_text(Hello(policies=registry.names, maps=["map_a", "map_b"]).model_dump_json())
+    await ws.send_text(Hello(policies=registry.names, maps=list(MAPS)).model_dump_json())
     state: dict[str, SimSession | None] = {"session": None}
     wake = asyncio.Event()
     send_lock = asyncio.Lock()
@@ -125,7 +126,11 @@ async def ws_sim(ws: WebSocket) -> None:
                 except KeyError as exc:
                     await send(ErrorMessage(message=str(exc)))
                     continue
-                session = SimSession(cmd, policy)
+                try:
+                    session = SimSession(cmd, policy)
+                except ValueError as exc:
+                    await send(ErrorMessage(message=str(exc)))
+                    continue
                 state["session"] = session
                 await send(session.snapshot())
             elif session is None:

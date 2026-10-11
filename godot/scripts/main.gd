@@ -19,6 +19,7 @@ const LOCAL_POLICY := "godot-mlp"  # dropdown entry; sent to the server as preda
 var client: SimClient
 var world_view: WorldView
 var chart: LineChart
+var chart_title: Label
 
 var seed_box: SpinBox
 var map_option: OptionButton
@@ -49,6 +50,7 @@ var _smoke_seed := 10000
 var _smoke_ticks := 2000
 var _actions_out := ""
 var _local_actions: Array = []
+var smoke_map := ""  # --map=<name>: map selected for smoke runs
 
 
 func _ready() -> void:
@@ -66,6 +68,8 @@ func _ready() -> void:
 			_smoke_seed = int(arg.trim_prefix("--seed="))
 		elif arg.begins_with("--ticks="):
 			_smoke_ticks = int(arg.trim_prefix("--ticks="))
+		elif arg.begins_with("--map="):
+			smoke_map = arg.trim_prefix("--map=")
 		elif arg.begins_with("--actions-out="):
 			_actions_out = arg.trim_prefix("--actions-out=")
 	var weights_error := local_policy.load_file(weights_path)
@@ -192,6 +196,9 @@ func _build_ui() -> void:
 	status_label = Label.new()
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# no minimum width: a long status must not push the side panel off-screen
+	status_label.clip_text = true
+	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	status_label.text = "서버 연결 중…"
 	bar.add_child(status_label)
 
@@ -238,7 +245,8 @@ func _build_ui() -> void:
 		side.add_child(pb)
 		bars[key] = pb
 
-	side.add_child(_section("초식 개체수(초록) · 포식자 에너지(노랑)"))
+	chart_title = _section("초식 개체수(초록) · 포식자 에너지(노랑)")
+	side.add_child(chart_title)
 	chart = LineChart.new()
 	chart.custom_minimum_size = Vector2(300, 140)
 	side.add_child(chart)
@@ -312,7 +320,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # ----------------------------------------------------------------------------- server events
-func _on_hello(policies: Array, _maps: Array) -> void:
+func _on_hello(policies: Array, maps: Array) -> void:
+	var current_map := map_option.get_item_text(map_option.selected)
+	map_option.clear()
+	for m in maps:
+		map_option.add_item(String(m))
+		if String(m) == current_map:
+			map_option.select(map_option.item_count - 1)
+	if smoke_map != "":
+		for i in map_option.item_count:
+			if map_option.get_item_text(i) == smoke_map:
+				map_option.select(i)
 	policy_option.clear()
 	for p in policies:
 		policy_option.add_item(String(p))
@@ -363,10 +381,20 @@ func _show(s: Dictionary) -> void:
 	last_snapshot = s
 	world_view.set_snapshot(s, 1.0 / float(s.get("ticks_per_second", 10.0)))
 	var m: Dictionary = s["metrics"]
-	chart.add_point(int(s["tick"]), float(m["herbivores_alive"]), float(m["predator_energy"]))
-	metrics_label.text = "정책  %s\n초식 생존  %d / 8\n사냥  %d\n공격 시도 / 무효  %d / %d" % [
-		_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]), int(m["kills"]),
-		int(m["attack_attempts"]), int(m["invalid_attacks"])]
+	var ecosystem := String(s["map"]) == "ecosystem"
+	chart.show_predators = ecosystem
+	chart_title.text = "초식 개체수(초록) · 포식자 수(빨강)" if ecosystem \
+		else "초식 개체수(초록) · 포식자 에너지(노랑)"
+	chart.add_point(int(s["tick"]), float(m["herbivores_alive"]), float(m["predator_energy"]),
+		float(m.get("predators_alive", 1)))
+	if ecosystem:
+		metrics_label.text = "정책  %s\n초식  %d · 포식자  %d\n출생  %d · 사냥  %d" % [
+			_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]),
+			int(m.get("predators_alive", 0)), int(m.get("births", 0)), int(m["kills"])]
+	else:
+		metrics_label.text = "정책  %s\n초식 생존  %d / 8\n사냥  %d\n공격 시도 / 무효  %d / %d" % [
+			_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]),
+			int(m["kills"]), int(m["attack_attempts"]), int(m["invalid_attacks"])]
 	var phase := "밤" if s["is_night"] else "낮"
 	var state := "종료" if s["done"] else ("일시정지" if s["paused"] else "진행 중")
 	_set_status("tick %d · %s · %s · seed %d · %s" % [
@@ -399,10 +427,16 @@ func _refresh_selected() -> void:
 			continue
 		selected_title.text = "%s  ·  %s" % [d["agent_id"], d.get("status_label", "")]
 		var target: Variant = d.get("target_id")
-		selected_detail.text = "행동: %s%s%s" % [
+		var lineage := ""
+		if d.get("generation") != null:
+			lineage = "\n세대 %d%s · 나이 %d" % [int(d["generation"]),
+				("  (부모 %s)" % d["parent_id"]) if d.get("parent_id") != null else "",
+				int(d["age"])]
+		selected_detail.text = "행동: %s%s%s%s" % [
 			d["current_action"],
 			("  → " + String(target)) if target != null else "",
-			("" if d["alive"] else "  (사망: %s)" % d.get("death_cause"))]
+			("" if d["alive"] else "  (사망: %s)" % d.get("death_cause")),
+			lineage]
 		for key in bars:
 			bars[key].value = float(d[key])
 		return

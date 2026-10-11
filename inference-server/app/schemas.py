@@ -17,6 +17,7 @@ PROTOCOL_VERSION = 1
 # `start.predator_policy` value that hands predator decisions to the viewer (Godot in-engine
 # inference): snapshots then carry the predator observation and the sim waits for `action`.
 CLIENT_POLICY = "client"
+MAPS = ("map_a", "map_b", "ecosystem")
 
 
 class _Model(BaseModel):
@@ -41,6 +42,10 @@ class DinoState(_Model):
     status_code: str
     status_label: str
     vision: float
+    # ecosystem map (reproduction) only
+    generation: int | None = None
+    parent_id: str | None = None
+    breed_cooldown: int | None = None
 
 
 class PlantState(_Model):
@@ -72,11 +77,13 @@ class EventState(_Model):
 
 class Metrics(_Model):
     herbivores_alive: int
-    predator_energy: float
+    predator_energy: float  # tracked predator (predator-000)
     predator_hunger: float
-    kills: int
-    attack_attempts: int
+    kills: int  # by every predator
+    attack_attempts: int  # tracked predator
     invalid_attacks: int
+    predators_alive: int = 1
+    births: int = 0  # cumulative, ecosystem map only
 
 
 class Snapshot(_Model):
@@ -120,7 +127,7 @@ class Hello(_Model):
 class StartCommand(_Model):
     type: Literal["start"]
     seed: int = 10000
-    map: Literal["map_a", "map_b"] = "map_a"
+    map: Literal["map_a", "map_b", "ecosystem"] = "map_a"
     predator_policy: str = "rule"
     ticks_per_second: float = Field(10.0, gt=0, le=200)
 

@@ -135,6 +135,42 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         "vision": {
           "title": "Vision",
           "type": "number"
+        },
+        "generation": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generation"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "breed_cooldown": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Breed Cooldown"
         }
       },
       "required": [
@@ -225,6 +261,16 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         },
         "invalid_attacks": {
           "title": "Invalid Attacks",
+          "type": "integer"
+        },
+        "predators_alive": {
+          "default": 1,
+          "title": "Predators Alive",
+          "type": "integer"
+        },
+        "births": {
+          "default": 0,
+          "title": "Births",
           "type": "integer"
         }
       },
@@ -643,7 +689,8 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
           "default": "map_a",
           "enum": [
             "map_a",
-            "map_b"
+            "map_b",
+            "ecosystem"
           ],
           "title": "Map",
           "type": "string"

@@ -160,3 +160,30 @@ def test_action_rejected_outside_client_mode(client):
         while msg["type"] != "error":
             msg = ws.receive_json()
         assert "client" in msg["message"]
+
+
+def test_ecosystem_map_session(client):
+    with client.websocket_connect("/ws/sim") as ws:
+        assert "ecosystem" in ws.receive_json()["maps"]
+        ws.send_text(json.dumps({"type": "start", "seed": 3, "map": "ecosystem",
+                                 "predator_policy": "rule", "ticks_per_second": 1}))
+        first = ws.receive_json()
+        assert first["map"] == "ecosystem"
+        assert first["metrics"]["predators_alive"] == 2
+        assert first["dinos"][0]["generation"] == 0
+        ws.send_text(json.dumps({"type": "pause"}))
+        msg = ws.receive_json()
+        while not msg["paused"]:
+            msg = ws.receive_json()
+        ws.send_text(json.dumps({"type": "step", "n": 1000}))
+        later = ws.receive_json()
+        assert later["metrics"]["births"] > 0
+        assert any(d["parent_id"] for d in later["dinos"])
+
+
+def test_client_mode_rejected_on_ecosystem(client):
+    with client.websocket_connect("/ws/sim") as ws:
+        ws.receive_json()
+        ws.send_text(json.dumps({"type": "start", "map": "ecosystem",
+                                 "predator_policy": "client"}))
+        assert "exactly one predator" in ws.receive_json()["message"]

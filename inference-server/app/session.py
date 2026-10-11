@@ -14,6 +14,7 @@ from app.schemas import (
     WaterState,
 )
 from paleosphere.config import load_world_config
+from paleosphere.core.events import EventKind
 from paleosphere.core.world import World
 from paleosphere.entities import Species
 from paleosphere.explain import status_code, status_label
@@ -22,6 +23,7 @@ from paleosphere.policies import RuleBasedHerbivore, predator_observation
 from paleosphere.policies.base import Policy
 
 MAX_TICKS = 2000
+ECOSYSTEM_MAX_TICKS = 20000  # maps with reproduction run long (population dynamics)
 
 
 class ClientPolicy:
@@ -49,6 +51,12 @@ class SimSession:
     def __init__(self, cmd: StartCommand, predator_policy: Policy):
         self.config = load_world_config(cmd.map)
         self.world = World(self.config, cmd.seed)
+        if isinstance(predator_policy, ClientPolicy) and len(
+            self.world.alive(Species.PREDATOR)
+        ) != 1:
+            raise ValueError("client mode drives exactly one predator; use map_a or map_b")
+        self.max_ticks = MAX_TICKS if self.config.reproduction is None else ECOSYSTEM_MAX_TICKS
+        self.births = 0
         self.predator_policy = predator_policy
         self.predator_policy_name = cmd.predator_policy
         self.herbivore_policy = RuleBasedHerbivore()
@@ -61,7 +69,7 @@ class SimSession:
 
     @property
     def done(self) -> bool:
-        return self.world.done or self.world.tick >= MAX_TICKS
+        return self.world.done or self.world.tick >= self.max_ticks
 
     @property
     def client_mode(self) -> bool:
@@ -97,14 +105,15 @@ class SimSession:
             )
             for d in world.alive()
         }
-        energy_before = world.dinos[self.predator_id].energy
+        energy_before = self.tracker.predator.energy
         self.last_events = world.step(actions)
+        self.births += sum(e.kind == EventKind.BIRTH for e in self.last_events)
         self.tracker.record(actions, energy_before, self.last_events)
 
     def snapshot(self) -> Snapshot:
         w = self.world
         raw = w.to_snapshot()
-        pred = w.dinos[self.predator_id]
+        pred = self.tracker.predator
         dinos = []
         for d in raw["dinos"]:
             code = status_code(w, d["agent_id"])
@@ -137,6 +146,8 @@ class SimSession:
                 kills=ev["kill"],
                 attack_attempts=ev["attack_hit"] + ev["attack_miss"] + ev["attack_invalid"],
                 invalid_attacks=ev["attack_invalid"],
+                predators_alive=len(w.alive(Species.PREDATOR)),
+                births=self.births,
             ),
             predator_observation=(
                 predator_observation(w, self.predator_id).tolist()
