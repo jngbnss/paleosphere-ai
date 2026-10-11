@@ -149,5 +149,13 @@ paleosphere-ai/
 | 4.4 | 관찰자 UI (정책 선택, 속도, 선택 패널, 라벨, 그래프) | ✅ 완료 | 서버 연결 후 화면 확인 | 정책·맵·seed 선택, 일시정지/속도, 클릭 선택 패널(게이지), 상태 라벨, 시야, 실시간 그래프. 창 모드 스크린샷 확인 |
 | 4.5 | 리플레이 모드 + dev 스크립트 + licenses.md + README 체크리스트 | ✅ 완료 | 리플레이 파일 재생 | Godot 리플레이 재생 headless 스모크 통과, scripts/dev.ps1, licenses.md, README 데모·MVP 체크리스트 |
 
+### Phase 5 — ONNX 내보내기 + Godot 내부 추론
+
+| # | 작업 | 상태 | 스모크 테스트 | 비고 |
+|---|---|---|---|---|
+| 5.1 | `export_onnx.py`: PPO actor → ONNX + Godot용 가중치 JSON | 🔄 진행중 | 고정 관찰 세트에서 SB3·ONNX·JSON(numpy) 행동 일치 | |
+| 5.2 | `OnnxPolicy` (onnxruntime, torch 불필요) + 서버 `models/*.onnx` 등록 | ⬜ 대기 | 같은 seed에서 PPOPolicy와 에피소드 해시 일치, `/predict` 응답 | |
+| 5.3 | Godot GDScript MLP + `client` 정책 모드 (서버는 관찰만 보내고 Godot이 행동 결정) | ⬜ 대기 | Godot headless: 고정 관찰 행동 일치 + client 모드 에피소드가 서버 ppo 실행과 해시 일치 | |
+
 ### MVP 이후
-탐험자 모드 · 번식 + 개체수 시계열 예측 · ONNX/Godot 내부 추론 · PettingZoo 다중 에이전트
+탐험자 모드 · 번식 + 개체수 시계열 예측 · PettingZoo 다중 에이전트
