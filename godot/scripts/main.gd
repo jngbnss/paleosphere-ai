@@ -490,6 +490,8 @@ func _on_hello(policies: Array, maps: Array, herbivore_policies: Array) -> void:
 	elif smoke_mode and replay == null:
 		speed_slider.set_value_no_signal(60 if screenshot_path else 20)
 		_start()
+	elif last_snapshot.is_empty() and replay == null:
+		_start()  # first connection: show a running world right away (ppo, map_a)
 
 
 func _on_snapshot(s: Dictionary) -> void:

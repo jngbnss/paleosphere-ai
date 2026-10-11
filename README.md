@@ -47,6 +47,7 @@ uv sync --all-extras
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Godot <Godot 실행 파일 경로>
    ```
+   연결되면 기본 설정(포식자 ppo, map_a)으로 바로 시작된다. 창 없이 연결만 검사: `scripts\dev.ps1 -Smoke`
    또는 따로:
    ```sh
    uv run python -m app                                   # http://127.0.0.1:8790

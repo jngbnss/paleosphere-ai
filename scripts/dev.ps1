@@ -1,10 +1,12 @@
 ﻿# PaleoSphere 로컬 데모: sim 서버를 띄우고 Godot 뷰어를 연다.
 #   powershell -ExecutionPolicy Bypass -File scripts\dev.ps1
 #   powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Godot C:\tools\godot\Godot_v4.7.2-stable_win64.exe
+#   powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 -Smoke   # 창 없이 연결 검사 후 종료
 # Godot을 찾지 못하면 브라우저 뷰어(http://127.0.0.1:<port>/)를 연다.
 param(
     [string]$Godot = $env:GODOT_BIN,
-    [int]$Port = 8790
+    [int]$Port = 8790,
+    [switch]$Smoke
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,13 +17,14 @@ if (-not $Godot) {
     if ($cmd) { $Godot = $cmd.Source }
 }
 if (-not $Godot) {
-    $candidate = Get-ChildItem "$env:USERPROFILE\tools\godot\Godot_v4*_win64.exe" -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notlike "*console*" } | Select-Object -First 1
+    # -Smoke는 출력을 받으려고 console 빌드를 쓴다
+    $candidate = Get-ChildItem "$env:USERPROFILE\tools\godot\Godot_v4*_win64*.exe" -ErrorAction SilentlyContinue |
+        Where-Object { ($_.Name -like "*console*") -eq [bool]$Smoke } | Select-Object -First 1
     if ($candidate) { $Godot = $candidate.FullName }
 }
 
 Write-Host "sim 서버 시작: http://127.0.0.1:$Port"
-$server = Start-Process -FilePath "uv" -ArgumentList @("run", "python", "-m", "app", "--port", "$Port") `
+$server = Start-Process -FilePath "uv" -ArgumentList @("run", "--all-extras", "python", "-m", "app", "--port", "$Port") `
     -WorkingDirectory $root -PassThru -WindowStyle Minimized
 
 try {
@@ -35,7 +38,12 @@ try {
     }
     if (-not $ready) { throw "서버가 시작되지 않았습니다." }
 
-    if ($Godot) {
+    if ($Smoke) {
+        if (-not $Godot) { throw "Godot을 찾지 못했습니다." }
+        $out = & $Godot --headless --path "$root\godot" -- --smoke "--server=ws://127.0.0.1:$Port/ws/sim" 2>&1
+        $out | Select-String "SMOKE" | ForEach-Object { Write-Host $_ }
+        if (-not ($out -match "SMOKE OK")) { throw "Godot 스모크 실패" }
+    } elseif ($Godot) {
         Write-Host "Godot 뷰어 실행: $Godot"
         & $Godot --path "$root\godot" -- "--server=ws://127.0.0.1:$Port/ws/sim"
     } else {
