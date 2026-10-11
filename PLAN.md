@@ -162,8 +162,8 @@ paleosphere-ai/
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
 | 6.1 | 번식·노화 규칙 (config 옵트인) + `ecosystem.yaml` | ✅ 완료 | 기존 골든 해시 불변 + ecosystem 결정성 + 출생 발생 | 골든 3종 불변, 번식 테스트 5개 포함 96개 통과. 탐색 6 seed × 20k tick: 3 공존(초식 6~50 진동), 3 초식 멸종 후 포식자 소멸. D-018 |
-| 6.2 | 장기 실행 러너 → 개체수 시계열 CSV | 🔄 진행중 | 20 seed × 장기 실행 CSV 생성, 멸종·공존 사례 확인 | |
-| 6.3 | 예측 모델 (기준선 → 선형 → GBM), seed 분리 평가 → Experiment 004 | ⬜ 대기 | MAE/RMSE 표 + 그래프 | |
+| 6.2 | 장기 실행 러너 → 개체수 시계열 CSV | ✅ 완료 | 20 seed × 장기 실행 CSV 생성, 멸종·공존 사례 확인 | `paleosphere.ecosystem`: 40 seed × 20k tick, 50 tick 간격 14,094행 (145초, 10 프로세스). 끝 상태 공존 25 · 전멸 14 · 초식만 1 |
+| 6.3 | 예측 모델 (기준선 → 선형 → GBM), seed 분리 평가 → Experiment 004 | 🔄 진행중 | MAE/RMSE 표 + 그래프 | |
 | 6.4 | 서버·Godot에서 ecosystem 맵 (다수 포식자, 개체수 그래프) | ⬜ 대기 | TestClient + Godot headless 스모크 | |
 
 ### Phase 7 — PettingZoo 다중 에이전트 (초식공룡 학습)
