@@ -45,7 +45,9 @@ try {
         if (-not ($out -match "SMOKE OK")) { throw "Godot 스모크 실패" }
     } elseif ($Godot) {
         Write-Host "Godot 뷰어 실행: $Godot"
-        & $Godot --path "$root\godot" -- "--server=ws://127.0.0.1:$Port/ws/sim"
+        # GUI 빌드는 즉시 반환하므로 창이 닫힐 때까지 기다린다 (안 그러면 서버가 바로 꺼짐)
+        Start-Process -FilePath $Godot -Wait `
+            -ArgumentList @("--path", "`"$root\godot`"", "--", "--server=ws://127.0.0.1:$Port/ws/sim")
     } else {
         Write-Host "Godot을 찾지 못해 브라우저 뷰어를 엽니다. 종료하려면 Ctrl+C."
         Start-Process "http://127.0.0.1:$Port/"
