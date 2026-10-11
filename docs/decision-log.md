@@ -17,3 +17,5 @@
 | D-013 | 2026-10-11 | PPO 학습에 규칙 기반 시연 BC 사전학습 + 근접 시작 커리큘럼(30%) 사용 | 보상 수정만으로는 학습 중 명중 0회 (탐색 실패). 평가는 기본 배치·평가 seed만 | 학습 step 증가, 에피소드 단축 |
 | D-014 | 2026-10-11 | 서버 기본 포트 8790, Godot 4.7.2 (GDScript, gl_compatibility) | 8765는 같은 PC의 다른 프로젝트 서버가 사용 중. Godot은 휴대용 실행 파일(설치 불필요) | 8765 |
 | D-015 | 2026-10-11 | 보상 v2: thirst_penalty 추가, drink_reward 0.2 | Exp 002 탈수 사망 65–100% | v1 유지 |
+| D-016 | 2026-10-11 | ONNX 그래프를 torch.onnx 대신 onnx.helper로 가중치에서 직접 구성 | actor는 Gemm 3개뿐. torch 2.14 exporter는 dynamo/onnxscript 의존이 버전마다 바뀜 | torch.onnx.export |
+| D-017 | 2026-10-11 | Godot 내부 추론은 GDScript MLP + JSON 가중치, sim은 계속 서버(`client` 모드) | ONNX Runtime GDExtension은 플랫폼별 네이티브 빌드 필요. MLP 26→64→64→7은 GDScript로 tick당 1ms 미만. 규칙을 GDScript로 옮기면 결정성 이중 관리 | onnxruntime GDExtension, sim 전체 GDScript 이식 |

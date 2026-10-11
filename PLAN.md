@@ -155,7 +155,7 @@ paleosphere-ai/
 |---|---|---|---|---|
 | 5.1 | `export_onnx.py`: PPO actor → ONNX + Godot용 가중치 JSON | ✅ 완료 | 고정 관찰 세트에서 SB3·ONNX·JSON(numpy) 행동 일치 | ppo-v2 관찰 7,623개(회귀 seed 에피소드+무작위)에서 SB3·ONNX·numpy 행동 100% 일치, logit 차 3.8e-6. onnx.helper로 그래프 직접 구성. 84개 통과 |
 | 5.2 | `OnnxPolicy` (onnxruntime, torch 불필요) + 서버 `models/*.onnx` 등록 | ✅ 완료 | 같은 seed에서 PPOPolicy와 에피소드 해시 일치, `/predict` 응답 | ppo-v2: map_a·map_b × seed 5개 = 10 에피소드 SB3·ONNX·MLP 해시 모두 일치. ONNX 약 5,400 steps/s (SB3 2,250). 서버 `ppo-v2-onnx` 등록·/predict 응답, torch 미설치 시 ONNX만 노출. 88개 통과 |
-| 5.3 | Godot GDScript MLP + `client` 정책 모드 (서버는 관찰만 보내고 Godot이 행동 결정) | 🔄 진행중 | Godot headless: 고정 관찰 행동 일치 + client 모드 에피소드가 서버 ppo 실행과 해시 일치 | |
+| 5.3 | Godot GDScript MLP + `client` 정책 모드 (서버는 관찰만 보내고 Godot이 행동 결정) | ✅ 완료 | Godot headless: 고정 관찰 행동 일치 + client 모드 에피소드가 서버 ppo 실행과 해시 일치 | GDScript MLP 관찰 7,623개 행동 100% 일치 (1.8초). Godot 구동 에피소드 seed 10000(사냥 7, 1413 tick)·42(사냥 4, 2000 tick)가 ONNX 실행과 해시 동일. 91개 통과. D-016·D-017 |
 
 ### MVP 이후
 탐험자 모드 · 번식 + 개체수 시계열 예측 · PettingZoo 다중 에이전트

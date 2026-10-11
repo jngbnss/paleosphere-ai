@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.schemas import (
+    CLIENT_POLICY,
     DinoState,
     EventState,
     Metrics,
@@ -17,10 +18,31 @@ from paleosphere.core.world import World
 from paleosphere.entities import Species
 from paleosphere.explain import status_code, status_label
 from paleosphere.logging.episode import EpisodeTracker
-from paleosphere.policies import RuleBasedHerbivore
+from paleosphere.policies import RuleBasedHerbivore, predator_observation
 from paleosphere.policies.base import Policy
 
 MAX_TICKS = 2000
+
+
+class ClientPolicy:
+    """Predator decisions made by the viewer (client mode). Holds one pending action."""
+
+    name = CLIENT_POLICY
+
+    def __init__(self) -> None:
+        self.pending: int | None = None
+
+    def reset(self, seed: int | None = None) -> None:
+        self.pending = None
+
+    def act(self, world, agent_id: str) -> int:
+        if self.pending is None:
+            raise RuntimeError("client mode: no action received for this tick")
+        action, self.pending = self.pending, None
+        return action
+
+    def metadata(self) -> dict:
+        return {"name": self.name, "kind": "client"}
 
 
 class SimSession:
@@ -40,6 +62,26 @@ class SimSession:
     @property
     def done(self) -> bool:
         return self.world.done or self.world.tick >= MAX_TICKS
+
+    @property
+    def client_mode(self) -> bool:
+        return isinstance(self.predator_policy, ClientPolicy)
+
+    @property
+    def ready(self) -> bool:
+        """Can advance a tick now (client mode needs the viewer's action first)."""
+        return not self.done and (not self.client_mode or self.predator_policy.pending is not None)
+
+    def set_client_action(self, tick: int, action: int) -> str | None:
+        """Queue the viewer's action; returns an error message if it does not apply."""
+        if not self.client_mode:
+            return f"action is only accepted when predator_policy is {CLIENT_POLICY!r}"
+        if tick != self.world.tick:
+            return f"stale action for tick {tick}; current tick is {self.world.tick}"
+        if self.done:
+            return "episode is over"
+        self.predator_policy.pending = action
+        return None
 
     def step(self) -> None:
         if self.done:
@@ -95,5 +137,10 @@ class SimSession:
                 kills=ev["kill"],
                 attack_attempts=ev["attack_hit"] + ev["attack_miss"] + ev["attack_invalid"],
                 invalid_attacks=ev["attack_invalid"],
+            ),
+            predator_observation=(
+                predator_observation(w, self.predator_id).tolist()
+                if self.client_mode and not self.done
+                else None
             ),
         )

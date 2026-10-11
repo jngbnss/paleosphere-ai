@@ -14,6 +14,9 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from paleosphere.policies.observation import OBS_DIM
 
 PROTOCOL_VERSION = 1
+# `start.predator_policy` value that hands predator decisions to the viewer (Godot in-engine
+# inference): snapshots then carry the predator observation and the sim waits for `action`.
+CLIENT_POLICY = "client"
 
 
 class _Model(BaseModel):
@@ -94,6 +97,11 @@ class Snapshot(_Model):
     rocks: list[RockState]
     events: list[EventState]
     metrics: Metrics
+    predator_observation: list[float] | None = Field(
+        None,
+        description=f"client mode only: the {OBS_DIM}-dim predator observation at this tick; "
+        "reply with an `action` command for the same tick",
+    )
 
 
 class ErrorMessage(_Model):
@@ -135,8 +143,16 @@ class StepCommand(_Model):
     n: int = Field(1, ge=1, le=1000)
 
 
+class ActionCommand(_Model):
+    """Client mode: the predator action for `tick` (the tick of the snapshot it answers)."""
+
+    type: Literal["action"]
+    tick: int = Field(ge=0)
+    action: int = Field(ge=0, le=6, description="PredatorAction id")
+
+
 ControlCommand = Annotated[
-    StartCommand | PauseCommand | ResumeCommand | SetSpeedCommand | StepCommand,
+    StartCommand | PauseCommand | ResumeCommand | SetSpeedCommand | StepCommand | ActionCommand,
     Field(discriminator="type"),
 ]
 control_adapter: TypeAdapter[ControlCommand] = TypeAdapter(ControlCommand)

@@ -23,7 +23,17 @@ Python 시뮬레이션 서버(`inference-server/app`)와 Godot 뷰어 사이의 
 4. 서버 → 매 tick `snapshot` (실행 중일 때). `pause` / `resume` / `set_speed` / `step`으로 제어
 5. 오류 시 서버 → `error`
 
+### client 모드 (Godot 내부 추론)
+
+`start.predator_policy = "client"`이면 포식자 행동을 뷰어가 정한다.
+
+1. 서버 → `snapshot` (tick t, `predator_observation` 26차원 포함)
+2. Godot → `action` (`tick: t`, `action`: 0–6). Godot은 `*.policy.json` 가중치로 직접 추론
+3. 서버가 그 행동으로 1 tick 진행 → tick t+1 `snapshot`. 행동이 올 때까지 기다린다
+4. `tick`이 현재 tick과 다르면 `error`, 무시한다. client 모드에서 `step`은 쓰지 않는다
+
 시뮬레이션은 서버에서만 실행된다. Godot은 렌더링과 제어 명령만 담당한다 (D-002).
+client 모드에서도 Godot은 포식자 행동만 정하고 규칙·상태 갱신은 서버가 한다.
 `status_label`은 관찰값과 선택된 행동을 사람이 읽기 쉽게 바꾼 것이며 모델 내부 추론을 뜻하지 않는다.
 
 HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행동).

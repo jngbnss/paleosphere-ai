@@ -17,6 +17,8 @@ from pydantic import ValidationError
 
 from app.policies import PolicyRegistry
 from app.schemas import (
+    CLIENT_POLICY,
+    ActionCommand,
     ErrorMessage,
     Hello,
     PauseCommand,
@@ -29,7 +31,7 @@ from app.schemas import (
     StepCommand,
     control_adapter,
 )
-from app.session import SimSession
+from app.session import ClientPolicy, SimSession
 from paleosphere.policies import PredatorAction
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -90,7 +92,7 @@ async def ws_sim(ws: WebSocket) -> None:
         loop = asyncio.get_running_loop()
         while True:
             session = state["session"]
-            if session is None or session.paused or session.done:
+            if session is None or session.paused or not session.ready:
                 await wake.wait()
                 wake.clear()
                 continue
@@ -115,7 +117,11 @@ async def ws_sim(ws: WebSocket) -> None:
             session = state["session"]
             if isinstance(cmd, StartCommand):
                 try:
-                    policy = registry.get(cmd.predator_policy)
+                    policy = (
+                        ClientPolicy()
+                        if cmd.predator_policy == CLIENT_POLICY
+                        else registry.get(cmd.predator_policy)
+                    )
                 except KeyError as exc:
                     await send(ErrorMessage(message=str(exc)))
                     continue
@@ -132,7 +138,15 @@ async def ws_sim(ws: WebSocket) -> None:
                 session.paused = False
             elif isinstance(cmd, SetSpeedCommand):
                 session.ticks_per_second = cmd.ticks_per_second
+            elif isinstance(cmd, ActionCommand):
+                error = session.set_client_action(cmd.tick, cmd.action)
+                if error:
+                    await send(ErrorMessage(message=error))
+                    continue
             elif isinstance(cmd, StepCommand):
+                if session.client_mode:
+                    await send(ErrorMessage(message="client mode advances on `action`, not `step`"))
+                    continue
                 for _ in range(cmd.n):
                     session.step()
                 await send(session.snapshot())

@@ -171,7 +171,7 @@ def verify(model, onnx_path: Path, weights: dict, obs: np.ndarray) -> dict:
 
 def export(
     model_path: Path, out_dir: Path, name: str | None = None, ticks: int = 2000,
-    n_random: int = 2000,
+    n_random: int = 2000, fixture_out: Path | None = None,
 ) -> dict:
     import onnx
 
@@ -205,6 +205,15 @@ def export(
     )
     if report["onnx_matches_sb3"] < 1.0 or report["numpy_matches_sb3"] < 1.0:
         raise RuntimeError(f"exported actor disagrees with SB3: {report}")
+    if fixture_out is not None:
+        # verification set for other runtimes, e.g. `godot -- --mlp-check=<fixture>`
+        fixture = {
+            "weights": name,
+            "obs": obs.tolist(),
+            "actions": MlpWeights(weights).logits(obs).argmax(axis=1).tolist(),
+        }
+        fixture_out.write_text(json.dumps(fixture, separators=(",", ":")), encoding="utf-8")
+        report["fixture"] = str(fixture_out)
     return report
 
 
@@ -215,9 +224,13 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--name", help="output base name (default: model file stem)")
     parser.add_argument("--ticks", type=int, default=2000, help="ticks per verification episode")
     parser.add_argument("--random-samples", type=int, default=2000)
+    parser.add_argument(
+        "--fixture-out", type=Path, help="also write the verification obs + expected actions"
+    )
     args = parser.parse_args(argv)
     report = export(
-        args.model, args.out_dir or args.model.parent, args.name, args.ticks, args.random_samples
+        args.model, args.out_dir or args.model.parent, args.name, args.ticks,
+        args.random_samples, args.fixture_out,
     )
     print(json.dumps(report, indent=2))
     return report

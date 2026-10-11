@@ -4,12 +4,17 @@ extends Control
 ##   godot --path godot                         # normal
 ##   godot --path godot -- --server=ws://host:port/ws/sim
 ##   godot --headless --path godot -- --smoke   # CI/local smoke check
+##   godot --headless --path godot -- --smoke-local --seed=10000 --actions-out=a.json
+##       # client mode: Godot runs the PPO actor itself and drives the predator
+##   godot --headless --path godot -- --mlp-check=fixture.json   # offline parity check
+## In-engine inference loads `--weights=<path>` (default ../models/ppo-v2.policy.json).
 
 const BAR_COLORS := {
 	"health": Color("4f9a53"), "energy": Color("d6a03a"),
 	"hunger": Color("c4472f"), "thirst": Color("5aa0c8"),
 }
 const BAR_NAMES := {"health": "체력", "energy": "에너지", "hunger": "배고픔", "thirst": "갈증"}
+const LOCAL_POLICY := "godot-mlp"  # dropdown entry; sent to the server as predator_policy "client"
 
 var client: SimClient
 var world_view: WorldView
@@ -37,14 +42,46 @@ var screenshot_path := ""
 var _smoke_snapshots := 0
 var _smoke_done := false
 var _smoke_deadline := 30.0
+var local_policy := MlpPolicy.new()
+var local_mode := false  # current run is driven by local_policy
+var smoke_local := false
+var _smoke_seed := 10000
+var _smoke_ticks := 2000
+var _actions_out := ""
+var _local_actions: Array = []
 
 
 func _ready() -> void:
 	smoke_mode = "--smoke" in OS.get_cmdline_user_args()
+	smoke_local = "--smoke-local" in OS.get_cmdline_user_args()
+	var weights_path := ProjectSettings.globalize_path("res://").path_join(
+		"../models/ppo-v2.policy.json").simplify_path()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			screenshot_path = arg.trim_prefix("--screenshot=")
 			smoke_mode = true
+		elif arg.begins_with("--weights="):
+			weights_path = arg.trim_prefix("--weights=")
+		elif arg.begins_with("--seed="):
+			_smoke_seed = int(arg.trim_prefix("--seed="))
+		elif arg.begins_with("--ticks="):
+			_smoke_ticks = int(arg.trim_prefix("--ticks="))
+		elif arg.begins_with("--actions-out="):
+			_actions_out = arg.trim_prefix("--actions-out=")
+	var weights_error := local_policy.load_file(weights_path)
+	if weights_error != "":
+		print("in-engine inference off: ", weights_error)
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--mlp-check="):
+			_run_mlp_check(arg.trim_prefix("--mlp-check="))
+			return
+	if smoke_local:
+		smoke_mode = true
+		_smoke_deadline = 300.0
+		if not local_policy.is_loaded():
+			print("SMOKE FAIL: ", weights_error)
+			get_tree().quit(1)
+			return
 	RenderingServer.set_default_clear_color(Color("1d2226"))
 	_apply_theme()
 	_build_ui()
@@ -239,11 +276,13 @@ func _start() -> void:
 	paused = false
 	pause_button.text = "일시정지"
 	chart.clear()
+	local_mode = _selected_policy() == LOCAL_POLICY
+	_local_actions.clear()
 	client.send_command({
 		"type": "start",
 		"seed": int(seed_box.value),
 		"map": map_option.get_item_text(map_option.selected),
-		"predator_policy": _selected_policy(),
+		"predator_policy": "client" if local_mode else _selected_policy(),
 		"ticks_per_second": speed_slider.value,
 	})
 
@@ -277,9 +316,18 @@ func _on_hello(policies: Array, _maps: Array) -> void:
 	policy_option.clear()
 	for p in policies:
 		policy_option.add_item(String(p))
+	if local_policy.is_loaded():
+		policy_option.add_item(LOCAL_POLICY)
+		policy_option.set_item_tooltip(policy_option.item_count - 1,
+			"Godot 안에서 %s 가중치로 직접 추론 (서버는 규칙만 실행)" % local_policy.version)
 	var preferred := policies.find("ppo")
 	policy_option.select(preferred if preferred >= 0 else 0)
-	if smoke_mode and replay == null:
+	if smoke_local:
+		policy_option.select(policy_option.item_count - 1)
+		seed_box.value = _smoke_seed
+		speed_slider.set_value_no_signal(200)
+		_start()
+	elif smoke_mode and replay == null:
 		speed_slider.set_value_no_signal(60 if screenshot_path else 20)
 		_start()
 
@@ -287,7 +335,25 @@ func _on_hello(policies: Array, _maps: Array) -> void:
 func _on_snapshot(s: Dictionary) -> void:
 	if replay != null:
 		return
+	var obs: Variant = s.get("predator_observation")
+	if local_mode and obs != null and not s["done"]:
+		var action := local_policy.predict(obs)
+		if _local_actions.size() == int(s["tick"]):
+			_local_actions.append(action)
+		client.send_command({"type": "action", "tick": int(s["tick"]), "action": action})
 	_show(s)
+	if smoke_local and not _smoke_done and (s["done"] or int(s["tick"]) >= _smoke_ticks):
+		_smoke_done = true
+		if _actions_out != "":
+			var f := FileAccess.open(_actions_out, FileAccess.WRITE)
+			f.store_string(JSON.stringify({
+				"seed": int(s["seed"]), "map": s["map"], "ticks": int(s["tick"]),
+				"weights": local_policy.version, "actions": _local_actions}))
+			f.close()
+		print("LOCAL SMOKE OK tick=%d kills=%d actions=%d weights=%s" % [
+			int(s["tick"]), int(s["metrics"]["kills"]), _local_actions.size(),
+			local_policy.version])
+		get_tree().quit(0)
 
 
 func _show(s: Dictionary) -> void:
@@ -299,7 +365,7 @@ func _show(s: Dictionary) -> void:
 	var m: Dictionary = s["metrics"]
 	chart.add_point(int(s["tick"]), float(m["herbivores_alive"]), float(m["predator_energy"]))
 	metrics_label.text = "정책  %s\n초식 생존  %d / 8\n사냥  %d\n공격 시도 / 무효  %d / %d" % [
-		s["predator_policy"], int(m["herbivores_alive"]), int(m["kills"]),
+		_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]), int(m["kills"]),
 		int(m["attack_attempts"]), int(m["invalid_attacks"])]
 	var phase := "밤" if s["is_night"] else "낮"
 	var state := "종료" if s["done"] else ("일시정지" if s["paused"] else "진행 중")
@@ -307,7 +373,7 @@ func _show(s: Dictionary) -> void:
 		int(s["tick"]), phase, state, int(s["seed"]), s["map"]])
 	_refresh_selected()
 
-	if smoke_mode and not _smoke_done:
+	if smoke_mode and not smoke_local and not _smoke_done:
 		_smoke_snapshots += 1
 		if _smoke_snapshots >= (120 if screenshot_path else 20):
 			_smoke_done = true
@@ -317,6 +383,12 @@ func _show(s: Dictionary) -> void:
 			print("SMOKE OK tick=%d policy=%s dinos=%d" % [
 				int(s["tick"]), s["predator_policy"], s["dinos"].size()])
 			get_tree().quit(0)
+
+
+func _policy_display(name: String) -> String:
+	if name == "client":
+		return "%s (Godot 추론: %s)" % [LOCAL_POLICY, local_policy.version]
+	return name
 
 
 func _refresh_selected() -> void:
@@ -350,6 +422,26 @@ func _load_replay(path: String) -> void:
 	last_snapshot = {}
 	_show(replay.current(speed_slider.value, paused))
 	_set_status("리플레이: %s (%d 프레임)" % [path.get_file(), replay.frames.size()])
+
+
+## Offline parity check: fixture {"obs": [[...]], "actions": [...]} from the Python export.
+func _run_mlp_check(path: String) -> void:
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not local_policy.is_loaded() or typeof(data) != TYPE_DICTIONARY:
+		print("MLP CHECK FAIL: weights or fixture missing")
+		get_tree().quit(1)
+		return
+	var mismatches := 0
+	var obs_list: Array = data["obs"]
+	for i in obs_list.size():
+		if local_policy.predict(obs_list[i]) != int(data["actions"][i]):
+			mismatches += 1
+	if mismatches == 0:
+		print("MLP CHECK OK n=%d weights=%s" % [obs_list.size(), local_policy.version])
+		get_tree().quit(0)
+	else:
+		print("MLP CHECK FAIL mismatches=%d / %d" % [mismatches, obs_list.size()])
+		get_tree().quit(1)
 
 
 func _process(delta: float) -> void:

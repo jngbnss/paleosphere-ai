@@ -56,10 +56,24 @@ uv sync --all-extras
 3. 뷰어에서 seed·맵·포식자 정책(rule / random / ppo)을 고르고 **시작**. 공룡을 클릭하면 상태가 보인다.
    리플레이: `uv run python -m paleosphere.run --seed 42 --replay replays/seed42.jsonl` 후 뷰어의 **리플레이 열기**.
 
+### ONNX 내보내기 + Godot 내부 추론
+
+```sh
+uv run python -m training.scripts.export_onnx --model models/ppo-v2.zip
+# → models/ppo-v2.onnx (onnxruntime) + models/ppo-v2.policy.json (Godot·numpy)
+```
+
+- 내보낼 때 회귀 seed 에피소드 관찰 + 무작위 관찰(약 7,600개)에서 SB3·ONNX·numpy 행동이 모두 같은지 검사한다.
+- 서버는 `models/*.onnx`를 `<이름>-onnx`로 등록한다. torch 없이 `uv sync --extra server --extra onnx`만으로도 서빙된다.
+- Godot은 `models/ppo-v2.policy.json`이 있으면 정책 목록에 **godot-mlp**를 추가한다. 고르면 서버는 규칙만 돌리고
+  포식자 행동은 Godot이 GDScript MLP로 직접 정한다 (`client` 모드, [protocol.md](docs/protocol.md)).
+  다른 가중치: `godot --path godot -- --weights=<path>`.
+
 ## 시뮬레이션·학습·평가 (그래픽 없음)
 
 ```sh
 uv run python -m paleosphere.run --seed 42 --predator rule            # 에피소드 요약
+uv run python -m paleosphere.run --seed 42 --predator onnx:models/ppo-v2.onnx   # torch 없이 PPO
 uv run python -m training.scripts.train_ppo --config ppo_v2 --seed 0   # PPO (BC 사전학습 포함)
 uv run python -m training.evaluation.evaluate \
     --policies rule random ppo=ppo:models/ppo-v2.zip \
@@ -73,6 +87,9 @@ uv run ruff check .
 uv run pytest
 godot --headless --path godot --import                       # 프로젝트 로드 검사
 godot --headless --path godot -- --smoke                     # 서버 연결 스모크 (서버 실행 중)
+godot --headless --path godot -- --smoke-local --seed=10000  # Godot 내부 추론으로 에피소드 1회
+uv run python -m training.scripts.export_onnx --fixture-out models/ppo-v2.fixture.json
+godot --headless --path godot -- --mlp-check=../models/ppo-v2.fixture.json  # GDScript MLP 일치
 ```
 
 ## 결과 요약
