@@ -22,7 +22,10 @@ def main(argv: list[str] | None = None) -> dict:
     parser = argparse.ArgumentParser(description="Run a PaleoSphere episode headless.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--map", default="map_a", help="map_a | map_b | path to yaml")
-    parser.add_argument("--predator", default="rule", help="rule | random | ppo:<model.zip>")
+    parser.add_argument(
+        "--predator", default="rule",
+        help="rule | random | ppo:<zip> | onnx:<onnx> | mlp:<policy.json>",
+    )
     parser.add_argument("--ticks", type=int, default=2000)
     parser.add_argument("--replay", type=Path, help="write a jsonl replay to this path")
     parser.add_argument("--replay-every", type=int, default=1)

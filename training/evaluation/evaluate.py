@@ -4,7 +4,8 @@
         ppo_v0_s0=ppo:training/checkpoints/ppo_v0_s0/best_model.zip \\
         --sets eval_seen_map eval_unseen_map --out analytics/reports/exp001
 
-Each policy entry is `spec` or `label=spec`; spec is rule | random | ppo:<path>.
+Each policy entry is `spec` or `label=spec`; spec is a `make_predator_policy` spec
+(rule | random | ppo:<zip> | onnx:<onnx> | mlp:<policy.json>).
 """
 
 from __future__ import annotations

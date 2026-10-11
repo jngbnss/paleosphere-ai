@@ -1,20 +1,24 @@
 import json
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from app import main as server
+from app import policies
 from app.policies import PolicyRegistry
 
 
 @pytest.fixture(scope="module")
 def smoke_models_dir(tmp_path_factory):
-    """A models/ dir holding a tiny smoke-trained PPO model named ppo-v1."""
+    """A models/ dir holding a tiny smoke-trained PPO model ppo-v1 and its ONNX export."""
+    from training.scripts.export_onnx import export
     from training.scripts.train_ppo import train
 
     out = train(["--smoke", "--run-name", "pytest_server_smoke"])
     models = tmp_path_factory.mktemp("models")
     (models / "ppo-v1.zip").write_bytes((out / "final_model.zip").read_bytes())
+    export(models / "ppo-v1.zip", models, ticks=100, n_random=100)
     return models
 
 
@@ -27,7 +31,7 @@ def client(monkeypatch, smoke_models_dir):
 def test_health_and_policies(client):
     assert client.get("/health").json()["status"] == "ok"
     names = [p["name"] for p in client.get("/policies").json()]
-    assert names == ["rule", "random", "ppo-v1"]
+    assert names == ["rule", "random", "ppo-v1", "ppo-v1-onnx"]
 
 
 def test_predict(client):
@@ -40,6 +44,23 @@ def test_predict(client):
     assert body["inference_time_ms"] < 100
 
 
+def test_predict_onnx_matches_sb3(client):
+    rng = np.random.default_rng(3)
+    for obs in rng.uniform(-1, 1, (20, 26)).tolist():
+        sb3 = client.post("/predict", json={"observation": obs, "policy": "ppo-v1"}).json()
+        onnx = client.post("/predict", json={"observation": obs, "policy": "ppo-v1-onnx"}).json()
+        assert onnx["action_id"] == sb3["action_id"]
+        assert onnx["policy_version"] == "ppo-v1-onnx"
+
+
+def test_registry_prefers_sb3_then_falls_back_to_onnx(smoke_models_dir, monkeypatch):
+    assert PolicyRegistry(smoke_models_dir).default_ppo() == "ppo-v1"
+    monkeypatch.setattr(policies, "_installed", lambda module: module == "onnxruntime")
+    torch_free = PolicyRegistry(smoke_models_dir)
+    assert torch_free.names == ["rule", "random", "ppo", "ppo-v1-onnx"]
+    assert torch_free.get("ppo").name == "onnx:ppo-v1-onnx"
+
+
 def test_predict_rejects_bad_observation(client):
     assert client.post("/predict", json={"observation": [0.0] * 3}).status_code == 422
 
@@ -48,7 +69,7 @@ def test_viewer_page(client):
     assert "PaleoSphere" in client.get("/").text
 
 
-@pytest.mark.parametrize("policy", ["rule", "ppo"])
+@pytest.mark.parametrize("policy", ["rule", "ppo", "ppo-v1-onnx"])
 def test_websocket_session(client, policy):
     with client.websocket_connect("/ws/sim") as ws:
         hello = ws.receive_json()
