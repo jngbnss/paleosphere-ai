@@ -8,7 +8,8 @@ Tick order (see docs/office-hours.md §3):
   4. metabolism
   5. deaths
   6. plant regrowth
-  7. tick += 1, day/night, target refresh for the next observation
+  7. (reproduction enabled) old age, births, corpse pruning
+  8. tick += 1, day/night, target refresh for the next observation
 """
 
 from __future__ import annotations
@@ -39,9 +40,12 @@ class World:
     def __init__(self, config: WorldConfig, seed: int):
         self.config = config
         self.seed = seed
-        layout_ss, move_ss, combat_ss = np.random.SeedSequence(seed).spawn(3)
+        # spawn(4)'s first three children equal spawn(3)'s, so adding the reproduction
+        # stream does not change worlds without reproduction.
+        layout_ss, move_ss, combat_ss, repro_ss = np.random.SeedSequence(seed).spawn(4)
         self.move_rng = np.random.default_rng(move_ss)
         self.combat_rng = np.random.default_rng(combat_ss)
+        self.repro_rng = np.random.default_rng(repro_ss)
         gen = generate_map(config, np.random.default_rng(layout_ss))
         self.plants = gen.plants
         self.waters = gen.waters
@@ -50,6 +54,7 @@ class World:
             (float(r.pos[0]), float(r.pos[1]), r.radius + ROCK_CLEARANCE) for r in self.rocks
         ]
         self.dinos: dict[str, Dino] = {d.agent_id: d for d in sorted(gen.dinos, key=_id)}
+        self._spawned = {s: sum(d.species == s for d in self.dinos.values()) for s in Species}
         self.tick = 0
         self.is_night = False
         self.events: list[Event] = []
@@ -98,6 +103,9 @@ class World:
 
     @property
     def done(self) -> bool:
+        if self.config.reproduction is not None:
+            # an ecosystem keeps running while either species can still grow back
+            return not self.alive()
         return not self.alive(Species.PREDATOR) or not self.alive(Species.HERBIVORE)
 
     # --------------------------------------------------------------------- step
@@ -128,6 +136,8 @@ class World:
             dino.attack_cooldown = max(0, dino.attack_cooldown - 1)
         for plant in self.plants:
             plant.regrow()
+        if self.config.reproduction is not None:
+            self._life_cycle()
         self.tick += 1
         self._update_day_night()
         self._update_targets()
@@ -299,8 +309,67 @@ class World:
                         EventKind.DRINK, agent_id, water.water_id, amount=before - dino.thirst
                     )
 
+    def _life_cycle(self) -> None:
+        """Old age, births and corpse pruning (only when reproduction is configured)."""
+        repro = self.config.reproduction
+        for dino in self.alive():
+            rc = getattr(repro, dino.species.value)
+            if rc.max_age is not None and dino.age >= rc.max_age:
+                self._kill(dino, DeathCause.OLD_AGE)
+        living = {s: len(self.alive(s)) for s in Species}
+        for parent in self.alive():
+            rc = getattr(repro, parent.species.value)
+            if parent.breed_cooldown > 0:
+                parent.breed_cooldown -= 1
+                continue
+            if not (
+                parent.age >= rc.min_age
+                and parent.hunger <= rc.max_hunger
+                and parent.thirst <= rc.max_thirst
+                and parent.energy >= rc.min_energy
+                and parent.health >= rc.min_health
+                and living[parent.species] < rc.max_population
+            ):
+                continue
+            if self.repro_rng.random() >= rc.chance:
+                continue
+            child = self._give_birth(parent, rc)
+            living[parent.species] += 1
+            self._emit(EventKind.BIRTH, parent.agent_id, child.agent_id)
+        cutoff = self.tick - repro.prune_dead_after
+        stale = [
+            i for i, d in self.dinos.items()
+            if not d.alive and d.death_tick is not None and d.death_tick <= cutoff
+        ]
+        for agent_id in stale:
+            del self.dinos[agent_id]
+
+    def _give_birth(self, parent: Dino, rc) -> Dino:
+        parent.energy = max(0.0, parent.energy - rc.energy_cost)
+        parent.hunger = min(100.0, parent.hunger + rc.hunger_cost)
+        parent.breed_cooldown = rc.cooldown
+        offset = self.repro_rng.normal(0.0, 1.0, size=2)
+        x, z = self._resolve_collisions(
+            float(parent.pos[0] + offset[0]), float(parent.pos[1] + offset[1])
+        )
+        n = self._spawned[parent.species]
+        self._spawned[parent.species] += 1
+        child = Dino(
+            agent_id=f"{parent.species.value}-{n:03d}",
+            species=parent.species,
+            pos=np.array([x, z]),
+            energy=rc.offspring_energy,
+            hunger=rc.offspring_hunger,
+            thirst=rc.offspring_thirst,
+            generation=parent.generation + 1,
+            parent_id=parent.agent_id,
+        )
+        self.dinos[child.agent_id] = child
+        return child
+
     def _kill(self, dino: Dino, cause: DeathCause, killer_id: str | None = None) -> None:
         dino.alive = False
+        dino.death_tick = self.tick
         dino.death_cause = cause
         dino.vel = np.zeros(2)
         dino.target_id = None
@@ -343,7 +412,10 @@ class World:
             "seed": self.seed,
             "map": self.config.map.name,
             "is_night": self.is_night,
-            "dinos": [d.to_dict() for d in self.dinos.values()],
+            "dinos": [
+                d.to_dict(reproduction=self.config.reproduction is not None)
+                for d in self.dinos.values()
+            ],
             "plants": [p.to_dict() for p in self.plants],
             "waters": [w.to_dict() for w in self.waters],
             "rocks": [r.to_dict() for r in self.rocks],

@@ -1,0 +1,39 @@
+# ecosystem: 번식·노화가 있는 장기 실행용 월드 (개체수 시계열, Phase 6)
+# 기본 맵(map_a) 규칙 위에 번식만 켠다. 에피소드 평가(map_a/map_b)에는 쓰지 않는다.
+extends: default
+map:
+  name: ecosystem
+  plants:
+    count: 12
+    regrow_per_tick: 0.06
+
+population:
+  herbivore: 12
+  predator: 2
+
+reproduction:
+  prune_dead_after: 50
+  herbivore:
+    min_age: 300
+    cooldown: 350
+    max_hunger: 50.0
+    max_thirst: 60.0
+    min_energy: 40.0
+    min_health: 60.0
+    chance: 0.015
+    energy_cost: 25.0
+    hunger_cost: 20.0
+    max_population: 50
+    max_age: 4000
+  predator:
+    min_age: 500
+    cooldown: 1000
+    max_hunger: 40.0
+    max_thirst: 60.0
+    min_energy: 40.0
+    min_health: 60.0
+    chance: 0.004
+    energy_cost: 30.0
+    hunger_cost: 25.0
+    max_population: 4
+    max_age: 5000

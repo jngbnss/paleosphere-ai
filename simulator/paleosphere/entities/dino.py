@@ -21,6 +21,7 @@ class DeathCause(StrEnum):
     STARVATION = "starvation"
     DEHYDRATION = "dehydration"
     EXHAUSTION = "exhaustion"
+    OLD_AGE = "old_age"
 
 
 @dataclass(slots=True)
@@ -44,13 +45,18 @@ class Dino:
     waypoint: np.ndarray | None = None
     sprinting: bool = False
     death_cause: DeathCause | None = None
+    # reproduction (only used and serialised when the world config enables it)
+    generation: int = 0
+    parent_id: str | None = None
+    breed_cooldown: int = 0
+    death_tick: int | None = None
 
     @property
     def speed(self) -> float:
         return float(np.hypot(self.vel[0], self.vel[1]))
 
-    def to_dict(self) -> dict:
-        return {
+    def to_dict(self, reproduction: bool = False) -> dict:
+        out = {
             "agent_id": self.agent_id,
             "species": str(self.species),
             "position": [round(float(self.pos[0]), 6), round(float(self.pos[1]), 6)],
@@ -65,3 +71,10 @@ class Dino:
             "alive": self.alive,
             "death_cause": str(self.death_cause) if self.death_cause else None,
         }
+        if reproduction:
+            out |= {
+                "generation": self.generation,
+                "parent_id": self.parent_id,
+                "breed_cooldown": self.breed_cooldown,
+            }
+        return out

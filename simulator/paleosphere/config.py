@@ -93,6 +93,31 @@ class CombatConfig(_Frozen):
     give_up_ignore_ticks: int
 
 
+class SpeciesReproductionConfig(_Frozen):
+    """When a well-fed adult may give birth, and what it costs. Asexual, one offspring."""
+
+    min_age: int
+    cooldown: int                 # ticks between births of the same parent
+    max_hunger: float             # parent must be at most this hungry / thirsty
+    max_thirst: float
+    min_energy: float
+    min_health: float
+    chance: float                 # birth probability per eligible tick
+    energy_cost: float
+    hunger_cost: float            # added to the parent's hunger
+    max_population: int           # living individuals of this species
+    max_age: int | None = None    # old-age death; None = never
+    offspring_hunger: float = 30.0
+    offspring_thirst: float = 30.0
+    offspring_energy: float = 60.0
+
+
+class ReproductionConfig(_Frozen):
+    herbivore: SpeciesReproductionConfig
+    predator: SpeciesReproductionConfig
+    prune_dead_after: int = 50    # drop corpses after N ticks so long runs stay bounded
+
+
 class WorldConfig(_Frozen):
     map: MapConfig
     population: PopulationConfig
@@ -100,6 +125,7 @@ class WorldConfig(_Frozen):
     species: dict[str, SpeciesConfig]
     metabolism: MetabolismConfig
     combat: CombatConfig
+    reproduction: ReproductionConfig | None = None  # None = fixed population (MVP rules)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

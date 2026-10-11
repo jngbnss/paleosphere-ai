@@ -19,3 +19,4 @@
 | D-015 | 2026-10-11 | 보상 v2: thirst_penalty 추가, drink_reward 0.2 | Exp 002 탈수 사망 65–100% | v1 유지 |
 | D-016 | 2026-10-11 | ONNX 그래프를 torch.onnx 대신 onnx.helper로 가중치에서 직접 구성 | actor는 Gemm 3개뿐. torch 2.14 exporter는 dynamo/onnxscript 의존이 버전마다 바뀜 | torch.onnx.export |
 | D-017 | 2026-10-11 | Godot 내부 추론은 GDScript MLP + JSON 가중치, sim은 계속 서버(`client` 모드) | ONNX Runtime GDExtension은 플랫폼별 네이티브 빌드 필요. MLP 26→64→64→7은 GDScript로 tick당 1ms 미만. 규칙을 GDScript로 옮기면 결정성 이중 관리 | onnxruntime GDExtension, sim 전체 GDScript 이식 |
+| D-018 | 2026-10-11 | 번식·노화는 world config `reproduction`이 있을 때만 (ecosystem.yaml). 무성 번식, 개체 상한, 시체 50 tick 뒤 제거 | MVP 맵·골든 해시·학습 모델을 그대로 유지. rng는 SeedSequence 4번째 자식이라 기존 스트림 불변 | 모든 맵에 번식 적용 |

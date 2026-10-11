@@ -50,6 +50,7 @@ class EpisodeTracker:
     def __init__(self, world: World, predator_id: str, policy_name: str):
         self.world = world
         self.predator_id = predator_id
+        self.predator = world.dinos[predator_id]  # kept even if pruned from world.dinos
         self.policy_name = policy_name
         self.events: Counter[EventKind] = Counter()
         self.actions: Counter[str] = Counter()
@@ -59,7 +60,7 @@ class EpisodeTracker:
         self.boundary_ticks = 0
 
     def record(self, actions: dict[str, int], energy_before: float, events: list[Event]) -> None:
-        pred = self.world.dinos[self.predator_id]
+        pred = self.predator
         if self.predator_id in actions:
             self.actions[PredatorAction(actions[self.predator_id]).name] += 1
             self.energy_spent += max(0.0, energy_before - pred.energy)
@@ -78,7 +79,7 @@ class EpisodeTracker:
 
     def summary(self) -> EpisodeSummary:
         w = self.world
-        pred = w.dinos[self.predator_id]
+        pred = self.predator
         kills = self.events[EventKind.KILL]
         valid = (
             self.events[EventKind.ATTACK_HIT] + self.events[EventKind.ATTACK_MISS]
@@ -137,7 +138,7 @@ def run_episode(
             )
             for d in world.alive()
         }
-        energy_before = world.dinos[predator_id].energy
+        energy_before = tracker.predator.energy
         events = world.step(actions)
         tracker.record(actions, energy_before, events)
         if on_tick is not None:

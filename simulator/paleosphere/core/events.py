@@ -13,6 +13,7 @@ class EventKind(StrEnum):
     EAT = "eat"
     DRINK = "drink"
     GIVE_UP = "give_up"
+    BIRTH = "birth"
 
 
 @dataclass(slots=True, frozen=True)
