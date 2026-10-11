@@ -170,8 +170,8 @@ paleosphere-ai/
 
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
-| 7.1 | 초식 관찰·보상 + `PaleoSphereHerd-v0` PettingZoo ParallelEnv | 🔄 진행중 | `parallel_api_test` 통과 | |
-| 7.2 | 정책 공유 학습 (다중 에이전트 → SB3 VecEnv 어댑터) | ⬜ 대기 | `--smoke` 학습 완료 | |
+| 7.1 | 초식 관찰·보상 + `PaleoSphereHerd-v0` PettingZoo ParallelEnv | ✅ 완료 | `parallel_api_test` 통과 | parallel_api_test 통과. 초식 관찰 30차원(포식자·접근 속도·추격 대상 여부·먹이·물·무리), 보상 herd_v0 6 component. 규칙 초식으로 env 실행 시 순수 world와 해시 일치 |
+| 7.2 | 정책 공유 학습 (다중 에이전트 → SB3 VecEnv 어댑터) | 🔄 진행중 | `--smoke` 학습 완료 | |
 | 7.3 | 학습 초식 vs 규칙 초식 평가 (규칙·PPO 포식자 상대) → Experiment 005 | ⬜ 대기 | 평가 CSV + 표 | |
 
 ### Phase 8 — 탐험자 모드

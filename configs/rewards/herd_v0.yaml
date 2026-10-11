@@ -1,0 +1,9 @@
+# 초식공룡 보상 v0 (Phase 7, 다중 에이전트). 목표 = 오래 살아남기.
+version: herd_v0
+survival_reward: 0.01        # 살아 있는 tick마다
+death_penalty: -10.0         # 사망 (원인 무관)
+hit_penalty: -2.0            # 포식자 공격에 맞음
+hunger_penalty_coef: 0.01    # 매 tick −coef × hunger/100
+thirst_penalty_coef: 0.01    # 매 tick −coef × thirst/100
+low_energy_threshold: 10.0
+low_energy_penalty: -0.01    # 에너지가 임계값 미만인 tick마다 (탈진 방지 신호)
