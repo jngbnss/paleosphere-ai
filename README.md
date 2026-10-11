@@ -6,7 +6,7 @@
 > 행동 트리·상태 머신을 AI라고 부르지 않는다. 규칙 기반 정책은 기준선이고,
 > AI 작업은 관찰·행동·보상 설계, PPO 학습, reward hacking 분석, 일반화 평가다.
 
-- 진행 상황·설계: [PLAN.md](PLAN.md)
+- 진행 상황·설계: [PLAN.md](PLAN.md) · 앞으로 할 일: [TODO.md](TODO.md)
 - 스펙: [docs/office-hours.md](docs/office-hours.md) · [docs/environment-spec.md](docs/environment-spec.md)
 - 실험 기록: [docs/experiments.md](docs/experiments.md) · 보상 설계: [docs/reward-design.md](docs/reward-design.md)
 - 모델 선택: [docs/model-selection.md](docs/model-selection.md) · 프로토콜: [docs/protocol.md](docs/protocol.md)
