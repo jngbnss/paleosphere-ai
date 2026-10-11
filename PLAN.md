@@ -172,13 +172,13 @@ paleosphere-ai/
 |---|---|---|---|---|
 | 7.1 | 초식 관찰·보상 + `PaleoSphereHerd-v0` PettingZoo ParallelEnv | ✅ 완료 | `parallel_api_test` 통과 | parallel_api_test 통과. 초식 관찰 30차원(포식자·접근 속도·추격 대상 여부·먹이·물·무리), 보상 herd_v0 6 component. 규칙 초식으로 env 실행 시 순수 world와 해시 일치 |
 | 7.2 | 정책 공유 학습 (다중 에이전트 → SB3 VecEnv 어댑터) | ✅ 완료 | `--smoke` 학습 완료 | `HerdVecEnv`: (world, 초식) 슬롯 = VecEnv 1칸, 사망 후 0 관찰 대기, TimeLimit.truncated 전달. `train_herd --smoke` 통과 (약 2,900 agent-steps/s) |
-| 7.3 | 학습 초식 vs 규칙 초식 평가 (규칙·PPO 포식자 상대) → Experiment 005 | 🔄 진행중 | 평가 CSV + 표 | |
+| 7.3 | 학습 초식 vs 규칙 초식 평가 (규칙·PPO 포식자 상대) → Experiment 005 | ✅ 완료 | 평가 CSV + 표 | 640 에피소드. v0(PPO만)는 탈수로 규칙보다 나쁨, v1(BC+PPO)은 규칙 포식자 상대 규칙과 동급(s2 생존 6.05 vs 5.90), 처음 보는 PPO 포식자 상대 생존 1.55–2.50 vs 0.85–0.95. herd-v1 배포, 서버·Godot 초식 정책 선택 추가 |
 
 ### Phase 8 — 탐험자 모드
 
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
-| 8.1 | 서버: 탐험자 위치·스캔·현장 기록·생태 보고서 (sim 비간섭) | ⬜ 대기 | TestClient: 스캔 결과 + 보고서, 탐험자 유무와 해시 동일 | |
+| 8.1 | 서버: 탐험자 위치·스캔·현장 기록·생태 보고서 (sim 비간섭) | 🔄 진행중 | TestClient: 스캔 결과 + 보고서, 탐험자 유무와 해시 동일 | |
 | 8.2 | Godot 탐험자 모드 (WASD 이동, 시야 안개, 스캔, 보고서 패널) | ⬜ 대기 | Godot headless 스모크 + 창 모드 스크린샷 | |
 
 ### 이후 후보

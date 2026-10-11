@@ -19,8 +19,10 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 
+from paleosphere.policies.factory import make_herbivore_policy
 from training.environments.herd_env import HERD_ENV_VERSION, HerdParallelEnv
 from training.environments.herd_vec_env import HerdVecEnv
+from training.scripts.bc_pretrain import behavior_clone
 from training.scripts.train_ppo import CHECKPOINT_DIR, RUNS_DIR, git_hash, load_training_config
 from training.scripts.train_ppo import sha256 as file_sha256
 
@@ -38,6 +40,38 @@ def evaluate_herd(predict, env_kwargs: dict, seeds: list[int]) -> list[dict]:
             obs, _, _, _, infos = env.step(dict(zip(names, map(int, actions), strict=True)))
         summaries.append(next(iter(infos.values()))["episode_summary"])
     return summaries
+
+
+def collect_herd_demonstrations(
+    teacher_spec: str, env_kwargs: dict, episodes: int, seed: int, gamma: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Teacher-driven herd episodes on training seeds -> (obs, actions, discounted returns)."""
+    teacher = make_herbivore_policy(teacher_spec)
+    env = HerdParallelEnv(**env_kwargs)
+    obs_buf, act_buf, ret_buf = [], [], []
+    env.reset(seed=seed)  # seeds the env rng; episode seeds come from the training range
+    for _ in range(episodes):
+        obs, _ = env.reset()
+        traj: dict[str, list] = {a: [] for a in env.agents}  # (obs, action, reward)
+        while env.agents:
+            acts = {a: int(teacher.act(env.world, a)) for a in env.agents}
+            nxt, rewards, _, _, _ = env.step(acts)
+            for a, act in acts.items():
+                traj[a].append((obs[a], act, rewards[a]))
+            obs = nxt
+        for steps in traj.values():
+            ret, returns = 0.0, []
+            for _, _, r in reversed(steps):
+                ret = r + gamma * ret
+                returns.append(ret)
+            obs_buf += [o for o, _, _ in steps]
+            act_buf += [a for _, a, _ in steps]
+            ret_buf += list(reversed(returns))
+    return (
+        np.asarray(obs_buf, dtype=np.float32),
+        np.asarray(act_buf, dtype=np.int64),
+        np.asarray(ret_buf, dtype=np.float32),
+    )
 
 
 def model_predictor(model):
@@ -109,7 +143,7 @@ def train(argv: list[str] | None = None) -> Path:
         eval_freq = total
     predator = args.predator or cfg["predator"]
     run_name = args.run_name or (
-        f"{cfg['reward']}_s{args.seed}" + ("_smoke" if args.smoke else "")
+        f"{Path(args.config).stem}_s{args.seed}" + ("_smoke" if args.smoke else "")
     )
     out_dir = CHECKPOINT_DIR / run_name
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -126,6 +160,17 @@ def train(argv: list[str] | None = None) -> Path:
         policy_kwargs={"net_arch": net_arch},
         tensorboard_log=None if args.smoke else str(RUNS_DIR), **ppo_cfg,
     )
+    bc_cfg = cfg.get("bc")
+    bc_stats: dict = {}
+    if bc_cfg:
+        episodes = 1 if args.smoke else bc_cfg["episodes"]
+        demos = collect_herd_demonstrations(
+            bc_cfg["teacher"], env_kwargs, episodes, args.seed, ppo_cfg["gamma"]
+        )
+        bc_stats = behavior_clone(
+            model, *demos, epochs=1 if args.smoke else bc_cfg["epochs"], seed=args.seed
+        )
+        print(f"[bc] teacher={bc_cfg['teacher']} {bc_stats}", flush=True)
     callback = HerdCallback(env_kwargs, eval_seeds, eval_freq, out_dir)
     started = time.perf_counter()
     model.learn(total_timesteps=total, callback=callback, tb_log_name=run_name)
@@ -151,6 +196,7 @@ def train(argv: list[str] | None = None) -> Path:
         "wall_time_sec": round(wall, 1),
         "agent_steps_per_sec": round(model.num_timesteps / wall, 1),
         "final_model_sha256": file_sha256(final),
+        "behavior_cloning": {**bc_cfg, **bc_stats} if bc_cfg else None,
         "best_eval": max(callback.history, key=lambda r: r["mean_survival_ticks"]),
         "smoke": args.smoke,
     }

@@ -5,7 +5,7 @@ extends Node
 
 signal connected
 signal disconnected
-signal hello_received(policies: Array, maps: Array)
+signal hello_received(policies: Array, maps: Array, herbivore_policies: Array)
 signal snapshot_received(snapshot: Dictionary)
 signal error_received(message: String)
 
@@ -57,7 +57,7 @@ func _handle(text: String) -> void:
 		return
 	match String(msg.get("type", "")):
 		"hello":
-			hello_received.emit(msg["policies"], msg["maps"])
+			hello_received.emit(msg["policies"], msg["maps"], msg.get("herbivore_policies", ["rule"]))
 		"snapshot":
 			snapshot_received.emit(msg)
 		"error":

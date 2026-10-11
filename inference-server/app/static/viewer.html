@@ -35,6 +35,7 @@
   <label>seed <input id="seed" type="number" value="10000" style="width:90px"></label>
   <label>맵 <select id="map"><option>map_a</option><option>map_b</option><option>ecosystem</option></select></label>
   <label>포식자 정책 <select id="policy"></select></label>
+  <label>초식 정책 <select id="herd"><option>rule</option></select></label>
   <button id="start">시작</button>
   <button id="pause">일시정지</button>
   <label>속도 <input id="speed" type="range" min="1" max="100" value="20"> <span id="speedv">20</span> tick/s</label>
@@ -65,6 +66,7 @@ function connect() {
     if (m.type === "hello") {
       $("policy").innerHTML = m.policies.map(p => `<option>${p}</option>`).join("");
       if (m.policies.includes("ppo")) $("policy").value = "ppo";
+      $("herd").innerHTML = (m.herbivore_policies || ["rule"]).map(p => `<option>${p}</option>`).join("");
     } else if (m.type === "error") { $("status").textContent = "오류: " + m.message; }
     else if (m.type === "snapshot") {
       if (!snap || m.tick < snap.tick || m.seed !== snap.seed) history = [];
@@ -77,7 +79,7 @@ function connect() {
 }
 const send = o => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
 $("start").onclick = () => { paused = false; $("pause").textContent = "일시정지";
-  send({type:"start", seed:+$("seed").value, map:$("map").value, predator_policy:$("policy").value, ticks_per_second:+$("speed").value}); };
+  send({type:"start", seed:+$("seed").value, map:$("map").value, predator_policy:$("policy").value, herbivore_policy:$("herd").value, ticks_per_second:+$("speed").value}); };
 $("pause").onclick = () => { paused = !paused; send({type: paused ? "pause" : "resume"}); $("pause").textContent = paused ? "재개" : "일시정지"; };
 $("speed").oninput = () => { $("speedv").textContent = $("speed").value; send({type:"set_speed", ticks_per_second:+$("speed").value}); };
 $("vision").onchange = draw;

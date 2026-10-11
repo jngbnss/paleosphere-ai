@@ -95,6 +95,7 @@ class Snapshot(_Model):
     map_size: float
     is_night: bool
     predator_policy: str
+    herbivore_policy: str = "rule"
     paused: bool
     ticks_per_second: float
     done: bool
@@ -121,6 +122,7 @@ class Hello(_Model):
     protocol_version: int = PROTOCOL_VERSION
     policies: list[str]
     maps: list[str]
+    herbivore_policies: list[str] = ["rule"]
 
 
 # ------------------------------------------------------------------ client commands
@@ -129,6 +131,7 @@ class StartCommand(_Model):
     seed: int = 10000
     map: Literal["map_a", "map_b", "ecosystem"] = "map_a"
     predator_policy: str = "rule"
+    herbivore_policy: str = Field("rule", description="rule | random | herd-<name> model")
     ticks_per_second: float = Field(10.0, gt=0, le=200)
 
 

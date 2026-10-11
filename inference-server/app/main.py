@@ -80,7 +80,11 @@ def web_viewer() -> FileResponse:
 @app.websocket("/ws/sim")
 async def ws_sim(ws: WebSocket) -> None:
     await ws.accept()
-    await ws.send_text(Hello(policies=registry.names, maps=list(MAPS)).model_dump_json())
+    await ws.send_text(
+        Hello(
+            policies=registry.names, maps=list(MAPS), herbivore_policies=registry.herd_names
+        ).model_dump_json()
+    )
     state: dict[str, SimSession | None] = {"session": None}
     wake = asyncio.Event()
     send_lock = asyncio.Lock()
@@ -123,11 +127,12 @@ async def ws_sim(ws: WebSocket) -> None:
                         if cmd.predator_policy == CLIENT_POLICY
                         else registry.get(cmd.predator_policy)
                     )
+                    herd_policy = registry.get_herd(cmd.herbivore_policy)
                 except KeyError as exc:
                     await send(ErrorMessage(message=str(exc)))
                     continue
                 try:
-                    session = SimSession(cmd, policy)
+                    session = SimSession(cmd, policy, herd_policy)
                 except ValueError as exc:
                     await send(ErrorMessage(message=str(exc)))
                     continue

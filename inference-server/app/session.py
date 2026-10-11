@@ -48,7 +48,9 @@ class ClientPolicy:
 
 
 class SimSession:
-    def __init__(self, cmd: StartCommand, predator_policy: Policy):
+    def __init__(
+        self, cmd: StartCommand, predator_policy: Policy, herbivore_policy: Policy | None = None
+    ):
         self.config = load_world_config(cmd.map)
         self.world = World(self.config, cmd.seed)
         if isinstance(predator_policy, ClientPolicy) and len(
@@ -59,7 +61,9 @@ class SimSession:
         self.births = 0
         self.predator_policy = predator_policy
         self.predator_policy_name = cmd.predator_policy
-        self.herbivore_policy = RuleBasedHerbivore()
+        self.herbivore_policy = herbivore_policy or RuleBasedHerbivore()
+        self.herbivore_policy_name = cmd.herbivore_policy
+        self.herbivore_policy.reset(cmd.seed)
         self.predator_policy.reset(cmd.seed)
         self.ticks_per_second = cmd.ticks_per_second
         self.paused = False
@@ -131,6 +135,7 @@ class SimSession:
             map_size=w.size,
             is_night=w.is_night,
             predator_policy=self.predator_policy_name,
+            herbivore_policy=self.herbivore_policy_name,
             paused=self.paused,
             ticks_per_second=self.ticks_per_second,
             done=self.done,

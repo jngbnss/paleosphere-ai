@@ -1,0 +1,27 @@
+# 초식공룡 정책 공유 PPO v1 = herd_v0 + 규칙 초식 시연 BC 사전학습 (Phase 7)
+algo: PPO
+total_timesteps: 2000000
+n_worlds: 8               # 동시에 돌리는 world 수 → VecEnv 슬롯 8 × 8마리 = 64
+map: map_a
+reward: herd_v0
+predator: rule            # 학습 상대 (고정 정책)
+max_steps: 2000
+ppo:
+  learning_rate: 0.0003
+  n_steps: 128            # 슬롯당 rollout → 64 × 128 = 8192 / update
+  batch_size: 1024
+  n_epochs: 5
+  gamma: 0.995            # 생존은 긴 지평 목표
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  clip_range: 0.2
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  net_arch: [64, 64]
+eval:
+  freq: 250000
+  seeds: [10000, 10001, 10002, 10003, 10004]
+bc:
+  teacher: rule               # 규칙 기반 초식 시연으로 actor·critic 초기화 (학습 seed만 사용)
+  episodes: 20                # 20 에피소드 × 8마리
+  epochs: 10

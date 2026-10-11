@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 
 class PPOPolicy:
+    kind = "ppo"
+
     def __init__(self, model_path: str | Path, version: str | None = None):
         import torch
         from stable_baselines3 import PPO
@@ -53,10 +55,25 @@ class PPOPolicy:
     def metadata(self) -> dict:
         return {
             "name": self.name,
-            "kind": "ppo",
+            "kind": self.kind,
             "version": self.version,
             "model_path": str(self.model_path),
             "model_sha256": self.sha256,
             "reward_version": self.training_metadata.get("reward_version"),
             "train_seed": self.training_metadata.get("train_seed"),
         }
+
+
+class PPOHerbivorePolicy(PPOPolicy):
+    """A shared herbivore policy trained with training/scripts/train_herd.py."""
+
+    kind = "ppo_herbivore"
+
+    def __init__(self, model_path: str | Path, version: str | None = None):
+        super().__init__(model_path, version)
+        self.name = f"ppo-herd:{self.version}"
+
+    def act(self, world: World, agent_id: str) -> int:
+        from paleosphere.policies.herbivore_observation import herbivore_observation
+
+        return self.predict(herbivore_observation(world, agent_id))

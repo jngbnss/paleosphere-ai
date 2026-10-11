@@ -3,6 +3,7 @@
 PPO models are discovered from `models/` (git-ignored; see README for how to produce them):
 - `<name>.zip`  SB3 checkpoint, served as `<name>` (needs the training extra / torch)
 - `<name>.onnx` exported actor, served as `<name>-onnx` (needs the onnx extra only)
+- `herd-<name>.zip` shared herbivore policy (train_herd.py), offered as a herbivore policy
 
 A model kind is listed only when its runtime is installed, so a torch-free deploy
 (`uv sync --extra server --extra onnx`) serves the ONNX models. The alias `ppo` points at
@@ -18,11 +19,18 @@ from pathlib import Path
 
 from app.schemas import PolicyInfo
 from paleosphere.config import REPO_ROOT
-from paleosphere.policies import PredatorAction, RandomPolicy, RuleBasedPredator
+from paleosphere.policies import (
+    HerbivoreAction,
+    PredatorAction,
+    RandomPolicy,
+    RuleBasedHerbivore,
+    RuleBasedPredator,
+)
 from paleosphere.policies.base import Policy
 
 MODELS_DIR = Path(os.environ.get("PALEOSPHERE_MODELS_DIR", REPO_ROOT / "models"))
 ONNX_SUFFIX = "-onnx"
+HERD_PREFIX = "herd-"
 _VERSIONED = re.compile(r"ppo-v(\d+)(-onnx)?")
 
 
@@ -34,8 +42,13 @@ class PolicyRegistry:
     def __init__(self, models_dir: Path = MODELS_DIR):
         self.models_dir = Path(models_dir)
         self._ppo_paths: dict[str, Path] = {}
+        self._herd_paths: dict[str, Path] = {}
         if _installed("stable_baselines3"):
-            self._ppo_paths |= {p.stem: p for p in sorted(self.models_dir.glob("*.zip"))}
+            for p in sorted(self.models_dir.glob("*.zip")):
+                if p.stem.startswith(HERD_PREFIX):
+                    self._herd_paths[p.stem] = p
+                else:
+                    self._ppo_paths[p.stem] = p
         if _installed("onnxruntime"):
             self._ppo_paths |= {
                 p.stem + ONNX_SUFFIX: p for p in sorted(self.models_dir.glob("*.onnx"))
@@ -49,6 +62,25 @@ class PolicyRegistry:
             names.append("ppo")
             names += list(self._ppo_paths)
         return names
+
+    @property
+    def herd_names(self) -> list[str]:
+        return ["rule", "random", *self._herd_paths]
+
+    def get_herd(self, name: str) -> Policy:
+        key = f"herd:{name}"
+        if key not in self._loaded:
+            if name == "rule":
+                self._loaded[key] = RuleBasedHerbivore()
+            elif name == "random":
+                self._loaded[key] = RandomPolicy(HerbivoreAction)
+            elif name in self._herd_paths:
+                from paleosphere.policies.ppo_policy import PPOHerbivorePolicy
+
+                self._loaded[key] = PPOHerbivorePolicy(self._herd_paths[name], version=name)
+            else:
+                raise KeyError(f"unknown herbivore policy {name!r}; available: {self.herd_names}")
+        return self._loaded[key]
 
     def default_ppo(self) -> str | None:
         # highest version first; at equal version the SB3 checkpoint (no suffix) wins

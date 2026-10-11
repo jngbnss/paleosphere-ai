@@ -5,10 +5,10 @@
 
 from __future__ import annotations
 
-from paleosphere.policies.actions import PredatorAction
+from paleosphere.policies.actions import HerbivoreAction, PredatorAction
 from paleosphere.policies.base import Policy
 from paleosphere.policies.random_policy import RandomPolicy
-from paleosphere.policies.rule_based import RuleBasedPredator
+from paleosphere.policies.rule_based import RuleBasedHerbivore, RuleBasedPredator
 
 
 def make_predator_policy(spec: str) -> Policy:
@@ -32,3 +32,16 @@ def make_predator_policy(spec: str) -> Policy:
         f"unknown predator policy spec: {spec!r} "
         "(use rule | random | ppo:<zip> | onnx:<onnx> | mlp:<policy.json>)"
     )
+
+
+def make_herbivore_policy(spec: str) -> Policy:
+    """rule | random | ppo:<zip> (a shared herd policy from train_herd.py)."""
+    if spec == "rule":
+        return RuleBasedHerbivore()
+    if spec == "random":
+        return RandomPolicy(HerbivoreAction)
+    if spec.startswith("ppo:"):
+        from paleosphere.policies.ppo_policy import PPOHerbivorePolicy  # needs training extras
+
+        return PPOHerbivorePolicy(spec.removeprefix("ppo:"))
+    raise ValueError(f"unknown herbivore policy spec: {spec!r} (use rule | random | ppo:<zip>)")

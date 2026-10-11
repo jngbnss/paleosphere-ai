@@ -430,6 +430,11 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
       "title": "Predator Policy",
       "type": "string"
     },
+    "herbivore_policy": {
+      "default": "rule",
+      "title": "Herbivore Policy",
+      "type": "string"
+    },
     "paused": {
       "title": "Paused",
       "type": "boolean"
@@ -548,6 +553,16 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         "type": "string"
       },
       "title": "Maps",
+      "type": "array"
+    },
+    "herbivore_policies": {
+      "default": [
+        "rule"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "title": "Herbivore Policies",
       "type": "array"
     }
   },
@@ -698,6 +713,12 @@ HTTP: `GET /health`, `GET /policies`, `POST /predict` (관찰 26차원 → 행�
         "predator_policy": {
           "default": "rule",
           "title": "Predator Policy",
+          "type": "string"
+        },
+        "herbivore_policy": {
+          "default": "rule",
+          "description": "rule | random | herd-<name> model",
+          "title": "Herbivore Policy",
           "type": "string"
         },
         "ticks_per_second": {

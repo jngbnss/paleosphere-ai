@@ -19,6 +19,10 @@ def smoke_models_dir(tmp_path_factory):
     models = tmp_path_factory.mktemp("models")
     (models / "ppo-v1.zip").write_bytes((out / "final_model.zip").read_bytes())
     export(models / "ppo-v1.zip", models, ticks=100, n_random=100)
+    from training.scripts.train_herd import train as train_herd
+
+    herd = train_herd(["--smoke", "--run-name", "pytest_server_herd"])
+    (models / "herd-v0.zip").write_bytes((herd / "final_model.zip").read_bytes())
     return models
 
 
@@ -187,3 +191,20 @@ def test_client_mode_rejected_on_ecosystem(client):
         ws.send_text(json.dumps({"type": "start", "map": "ecosystem",
                                  "predator_policy": "client"}))
         assert "exactly one predator" in ws.receive_json()["message"]
+
+
+def test_learned_herd_policy_session(client):
+    with client.websocket_connect("/ws/sim") as ws:
+        hello = ws.receive_json()
+        assert hello["herbivore_policies"] == ["rule", "random", "herd-v0"]
+        assert "herd-v0" not in hello["policies"]
+        ws.send_text(json.dumps({"type": "start", "seed": 10000, "predator_policy": "rule",
+                                 "herbivore_policy": "herd-v0", "ticks_per_second": 200}))
+        first = ws.receive_json()
+        assert first["herbivore_policy"] == "herd-v0"
+        assert ws.receive_json()["tick"] == 1
+        ws.send_text(json.dumps({"type": "start", "herbivore_policy": "nope"}))
+        msg = ws.receive_json()
+        while msg["type"] != "error":
+            msg = ws.receive_json()
+        assert "herbivore" in msg["message"]

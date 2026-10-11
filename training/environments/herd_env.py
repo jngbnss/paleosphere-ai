@@ -78,6 +78,7 @@ class HerdParallelEnv(ParallelEnv):
         self.world = World(self.world_config, self.episode_seed)
         self.predator_policy.reset(self.episode_seed)
         self.agents = [d.agent_id for d in self.world.alive(Species.HERBIVORE)]
+        self.predator_id = self.world.alive(Species.PREDATOR)[0].agent_id
         self.steps = 0
         self.components = Counter()
         self.death_causes: Counter[str] = Counter()
@@ -120,6 +121,7 @@ class HerdParallelEnv(ParallelEnv):
     def episode_summary(self, herd_alive: bool | None = None) -> dict[str, Any]:
         world = self.world
         herd = [world.dinos[a] for a in self.possible_agents]
+        predator = world.dinos[self.predator_id]
         return {
             "episode_seed": self.episode_seed,
             "ticks": world.tick,
@@ -127,6 +129,9 @@ class HerdParallelEnv(ParallelEnv):
             "herbivores_alive": sum(d.alive for d in herd),
             "mean_survival_ticks": float(np.mean([d.age for d in herd])),
             "death_causes": dict(sorted(self.death_causes.items())),
+            "predator_alive": predator.alive,
+            "predator_death_cause": str(predator.death_cause) if predator.death_cause else None,
+            "predator_survival_ticks": predator.age,
             "reward_components": {
                 k: float(self.components[k]) for k in (*HERD_REWARD_COMPONENTS, "total_reward")
             },

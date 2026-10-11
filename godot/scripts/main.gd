@@ -24,6 +24,7 @@ var chart_title: Label
 var seed_box: SpinBox
 var map_option: OptionButton
 var policy_option: OptionButton
+var herd_option: OptionButton
 var pause_button: Button
 var speed_slider: HSlider
 var speed_label: Label
@@ -222,6 +223,15 @@ func _build_ui() -> void:
 	side.add_theme_constant_override("separation", 10)
 	body.add_child(side)
 
+	var herd_row := HBoxContainer.new()
+	herd_row.add_child(_caption("초식 정책"))
+	herd_option = OptionButton.new()
+	herd_option.add_item("rule")
+	herd_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	herd_option.tooltip_text = "herd-*: 정책 공유 PPO로 학습한 초식 무리 (Phase 7)"
+	herd_row.add_child(herd_option)
+	side.add_child(herd_row)
+
 	side.add_child(_section("현황"))
 	metrics_label = Label.new()
 	side.add_child(metrics_label)
@@ -291,6 +301,7 @@ func _start() -> void:
 		"seed": int(seed_box.value),
 		"map": map_option.get_item_text(map_option.selected),
 		"predator_policy": "client" if local_mode else _selected_policy(),
+		"herbivore_policy": herd_option.get_item_text(herd_option.selected),
 		"ticks_per_second": speed_slider.value,
 	})
 
@@ -320,7 +331,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # ----------------------------------------------------------------------------- server events
-func _on_hello(policies: Array, maps: Array) -> void:
+func _on_hello(policies: Array, maps: Array, herbivore_policies: Array) -> void:
+	var current_herd := herd_option.get_item_text(herd_option.selected)
+	herd_option.clear()
+	for h in herbivore_policies:
+		herd_option.add_item(String(h))
+		if String(h) == current_herd:
+			herd_option.select(herd_option.item_count - 1)
 	var current_map := map_option.get_item_text(map_option.selected)
 	map_option.clear()
 	for m in maps:
@@ -388,12 +405,14 @@ func _show(s: Dictionary) -> void:
 	chart.add_point(int(s["tick"]), float(m["herbivores_alive"]), float(m["predator_energy"]),
 		float(m.get("predators_alive", 1)))
 	if ecosystem:
-		metrics_label.text = "정책  %s\n초식  %d · 포식자  %d\n출생  %d · 사냥  %d" % [
-			_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]),
+		metrics_label.text = "정책  %s / 초식 %s\n초식  %d · 포식자  %d\n출생  %d · 사냥  %d" % [
+			_policy_display(String(s["predator_policy"])), s.get("herbivore_policy", "rule"),
+			int(m["herbivores_alive"]),
 			int(m.get("predators_alive", 0)), int(m.get("births", 0)), int(m["kills"])]
 	else:
-		metrics_label.text = "정책  %s\n초식 생존  %d / 8\n사냥  %d\n공격 시도 / 무효  %d / %d" % [
-			_policy_display(String(s["predator_policy"])), int(m["herbivores_alive"]),
+		metrics_label.text = "정책  %s / 초식 %s\n초식 생존  %d / 8\n사냥  %d\n공격 시도 / 무효  %d / %d" % [
+			_policy_display(String(s["predator_policy"])), s.get("herbivore_policy", "rule"),
+			int(m["herbivores_alive"]),
 			int(m["kills"]), int(m["attack_attempts"]), int(m["invalid_attacks"])]
 	var phase := "밤" if s["is_night"] else "낮"
 	var state := "종료" if s["done"] else ("일시정지" if s["paused"] else "진행 중")
