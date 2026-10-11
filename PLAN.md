@@ -153,7 +153,7 @@ paleosphere-ai/
 
 | # | 작업 | 상태 | 스모크 테스트 | 비고 |
 |---|---|---|---|---|
-| 5.1 | `export_onnx.py`: PPO actor → ONNX + Godot용 가중치 JSON | 🔄 진행중 | 고정 관찰 세트에서 SB3·ONNX·JSON(numpy) 행동 일치 | |
+| 5.1 | `export_onnx.py`: PPO actor → ONNX + Godot용 가중치 JSON | ✅ 완료 | 고정 관찰 세트에서 SB3·ONNX·JSON(numpy) 행동 일치 | ppo-v2 관찰 7,623개(회귀 seed 에피소드+무작위)에서 SB3·ONNX·numpy 행동 100% 일치, logit 차 3.8e-6. onnx.helper로 그래프 직접 구성. 84개 통과 |
 | 5.2 | `OnnxPolicy` (onnxruntime, torch 불필요) + 서버 `models/*.onnx` 등록 | ⬜ 대기 | 같은 seed에서 PPOPolicy와 에피소드 해시 일치, `/predict` 응답 | |
 | 5.3 | Godot GDScript MLP + `client` 정책 모드 (서버는 관찰만 보내고 Godot이 행동 결정) | ⬜ 대기 | Godot headless: 고정 관찰 행동 일치 + client 모드 에피소드가 서버 ppo 실행과 해시 일치 | |
 
