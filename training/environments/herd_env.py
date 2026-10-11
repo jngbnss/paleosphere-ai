@@ -55,6 +55,7 @@ class HerdParallelEnv(ParallelEnv):
         self.seed_range = seed_range
         n = self.world_config.population.herbivore
         self.possible_agents = [f"herbivore-{i:03d}" for i in range(n)]
+        self.render_mode = None
         self.agents: list[str] = []
         self.world: World | None = None
         self._rng = np.random.default_rng()
