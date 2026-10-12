@@ -6,6 +6,8 @@
 > 행동 트리·상태 머신을 AI라고 부르지 않는다. 규칙 기반 정책은 기준선이고,
 > AI 작업은 관찰·행동·보상 설계, PPO 학습, reward hacking 분석, 일반화 평가다.
 
+- **웹 데모 (설치 없이 브라우저에서 실행)**: https://jngbnss.github.io/paleosphere-ai/ — 규칙 vs PPO 포식자 라이브 비교, Exp 001–004 결과
+  (`pages/`, 시뮬레이터 JS 이식 `pages/sim.js`, 검증 `scripts/web-demo/`)
 - 진행 상황·설계: [PLAN.md](PLAN.md) · 앞으로 할 일: [TODO.md](TODO.md)
 - 스펙: [docs/office-hours.md](docs/office-hours.md) · [docs/environment-spec.md](docs/environment-spec.md)
 - 실험 기록: [docs/experiments.md](docs/experiments.md) · 보상 설계: [docs/reward-design.md](docs/reward-design.md)
